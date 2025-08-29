@@ -11,12 +11,12 @@ router.get('/signin', (req,res)=>{
     res.send(signupTemplate({req}));
 })
 
-
+router.post('/signin', async (req,res) => {
+    res.send('Entraste pa');
+});
 
 router.get('/signup', (req,res)=>{
     res.send(signinTemplate({req}));
 })
-
-
 
 module.exports = router;
