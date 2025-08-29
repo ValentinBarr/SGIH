@@ -5,6 +5,7 @@ const inicioRouter = require('./routes/inicio.js');
 
 const app = express();
 
+app.use(express.static('public'));
 app.use(authRouter);
 app.use(inicioRouter);
 
