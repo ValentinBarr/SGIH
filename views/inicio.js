@@ -1,4 +1,4 @@
-const layout = require('./layout');
+const layout = require('./admin/products/layout');
 
 module.exports = ({ req }) => {
     return layout({content:`
