@@ -45,3 +45,54 @@
     }
   });
 })();
+
+// ---- Submenú Inventarios (desplegar hacia abajo)
+(() => {
+  const invToggle = document.getElementById('inv-toggle');
+  const invSub    = document.getElementById('inv-sub');
+  const invLink   = document.getElementById('inv-link');
+
+  const openInv = () => {
+    if (!invSub) return;
+    invSub.hidden = false;
+    invToggle?.classList.add('open');
+    invToggle?.setAttribute('aria-expanded', 'true');
+    localStorage.setItem('submenu:inventarios', 'open');
+  };
+
+  const closeInv = () => {
+    if (!invSub) return;
+    invSub.hidden = true;
+    invToggle?.classList.remove('open');
+    invToggle?.setAttribute('aria-expanded', 'false');
+    localStorage.setItem('submenu:inventarios', 'closed');
+  };
+
+  // Mantener abierto al entrar a /inventarios/* o por preferencia guardada
+  const saved = localStorage.getItem('submenu:inventarios');
+  if (location.pathname.startsWith('/inventarios') || saved === 'open') openInv();
+
+  // Chevron: solo expandir/colapsar (sin navegar)
+  invToggle?.addEventListener('click', (e) => {
+    e.preventDefault();
+    invSub.hidden ? openInv() : closeInv();
+  });
+
+  // Click en el texto "Inventarios": navegar y mantener abierto
+  invLink?.addEventListener('click', () => openInv());
+
+  // Marcar sub-link activo
+  const markActiveInv = () => {
+    if (!invSub) return;
+    const path = window.location.pathname.replace(/\/$/, '');
+    invSub.querySelectorAll('a').forEach(a => {
+      const href = new URL(a.href, location.origin).pathname.replace(/\/$/, '');
+      a.classList.toggle(
+        'is-active',
+        href === path || (href === '/inventarios/dashboard' && path === '/inventarios')
+      );
+    });
+  };
+  markActiveInv();
+  window.addEventListener('popstate', markActiveInv);
+})();

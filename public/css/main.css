@@ -98,3 +98,157 @@ html.sidebar-collapsed .sidebar__label{ opacity:0; pointer-events:none; width:0;
   outline:2px solid var(--accent);
   outline-offset:2px;
 }
+
+/* Inventarios: grupo con chevron y submenu */
+.sidebar__group { display:flex; align-items:center; gap:8px; }
+.sidebar__link--parent { flex:1; }
+
+.sidebar__chevron {
+  background:none; border:0; color:#94a3b8; cursor:pointer;
+  font-size:18px; line-height:1; transform:rotate(0deg); transition:transform .15s ease;
+}
+.sidebar__chevron.open { transform:rotate(90deg); color:#38bdf8; }
+
+.sidebar__submenu { list-style:none; margin:6px 0 10px 34px; padding:0; display:grid; gap:6px; }
+.sidebar__sublink {
+  display:block; padding:6px 8px; border-radius:8px;
+  color:#9ca3af; text-decoration:none;
+}
+.sidebar__sublink:hover { color:#fff; background:rgba(148,163,184,.15); }
+.sidebar__sublink.is-active { color:#a78bfa; background:rgba(167,139,250,.15); }
+
+/* Grupo Inventarios */
+/* ahora: link y chevron en 2 columnas; el UL ocupa toda la fila de abajo */
+.sidebar__group{
+  display:grid;
+  grid-template-columns: 1fr auto; /* texto | chevron */
+  align-items:center;
+  gap:8px;
+}
+
+/* el submenú baja y toma todo el ancho del grupo */
+.sidebar__submenu{
+  grid-column: 1 / -1;
+  list-style:none;
+  margin:6px 0 10px 34px;
+  padding:0;
+  display:grid;
+  gap:6px;
+}
+.sidebar__link--parent{flex:1;}
+
+.sidebar__chevron{
+  background:none;border:0;color:#94a3b8;cursor:pointer;
+  font-size:18px;line-height:1;transform:rotate(0deg);
+  transition:transform .15s ease;
+}
+.sidebar__chevron.open{transform:rotate(90deg);color:#38bdf8;}
+
+.sidebar__submenu{list-style:none;margin:6px 0 10px 34px;padding:0;display:grid;gap:6px;}
+.sidebar__submenu[hidden]{display:none;}
+.sidebar__sublink{display:block;padding:6px 8px;border-radius:8px;color:#9ca3af;text-decoration:none;}
+.sidebar__sublink:hover{color:#fff;background:rgba(148,163,184,.15);}
+.sidebar__sublink.is-active{color:#a78bfa;background:rgba(167,139,250,.15);}
+
+
+/* —— Card / layout ——————————————————————————— */
+.inventory-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(2, 8, 20, .08);
+  border: 1px solid rgba(15, 23, 42, .06);
+  padding: 18px;
+  margin-bottom: 22px;
+}
+
+.inventory-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.inventory-toolbar .search {
+  min-width: 260px;
+  flex: 1 1 320px;
+}
+
+.btn {
+  display:inline-flex; align-items:center; gap:.5rem;
+  height: 36px; padding: 0 14px; border-radius: 10px; font-weight:600;
+  border: 1px solid transparent; background:#e5e7eb; color:#111827;
+}
+.btn:hover { filter: brightness(0.97); }
+.btn--subtle { background:#eef2ff; color:#3730a3; border-color:#c7d2fe; }
+.btn--outline { background:#fff; color:#334155; border-color:#cbd5e1; }
+.btn--primary { background:#0ea5e9; color:#fff; }
+.btn-group { display:flex; gap:10px; }
+
+/* —— Tabla plana estilo “app” ————————————————— */
+.table.table-inventory {
+  --row-hover: rgba(15,23,42,.03);
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 6px;     /* “filas flotantes” */
+}
+.table-inventory thead th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  border: 0;
+  padding: 10px 12px;
+}
+.table-inventory tbody tr {
+  background: #fff;
+  box-shadow: 0 1px 0 rgba(2,8,20,.04);
+}
+.table-inventory tbody td {
+  border: 0;
+  padding: 10px 12px;
+}
+.table-inventory tbody tr:hover { background: var(--row-hover); }
+
+/* redondeo por fila flotante */
+.table-inventory tbody tr td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+.table-inventory tbody tr td:last-child  { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+/* —— Celdas de alerta (bajo mínimo/umbral) —— */
+.cell-warning {
+  background: #fff3cd;
+  box-shadow: inset 0 0 0 1px #ffe59b;
+  border-radius: 6px;
+}
+.cell-warning .icon { color:#f59e0b; margin-left:6px; }
+
+/* chips pequeños (ej. Activo “Sí”) */
+.chip {
+  display:inline-flex; align-items:center; padding: 2px 8px;
+  border-radius: 999px; font-size:.8rem; font-weight:600;
+  background:#eafaf1; color:#0d6b3c;
+}
+.chip--danger { background:#fde8e8; color:#b91c1c;}
+
+/* —— Filtros ———————————————————————————— */
+.filters-bar{
+  display:grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1fr auto;
+  gap:12px;
+  align-items:end;
+  background:#f8fafc;
+  border:1px solid rgba(15,23,42,.06);
+  border-radius:12px;
+  padding:12px;
+  margin: 4px 0 12px 0;
+}
+.filters-bar .label{ font-size:.85rem; color:#475569; margin-bottom:6px; }
+.filters-bar .input,
+.filters-bar .select select{
+  height:38px; border-radius:10px; border-color:#cbd5e1;
+  box-shadow:0 1px 0 rgba(2,8,20,.03) inset;
+}
+.filters-bar .btn-apply{ height:38px; border-radius:10px; }
+.filters-bar .btn-clear{ height:38px; border-radius:10px; background:#fff; border:1px solid #cbd5e1; }
+@media (max-width: 980px){
+  .filters-bar{ grid-template-columns: 1fr 1fr; }
+}

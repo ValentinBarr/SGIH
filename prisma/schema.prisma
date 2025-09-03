@@ -17,9 +17,6 @@ datasource db {
 // ----------------------------
 // Modelo Producto
 // ----------------------------
-// ----------------------------
-// Modelo Producto
-// ----------------------------
 model Producto {
   id_prod                  Int       @id @default(autoincrement())
   nombre_prod              String    @db.VarChar(120)
@@ -31,7 +28,7 @@ model Producto {
   stockMinimoGlobal_prod   Decimal?  @db.Decimal(18, 3)
   activo_prod              Boolean
   fechaAlta_prod           DateTime  @default(now())
-
+  precio_prod              Decimal?  @db.Decimal(18, 2)
   // Relación N:M parametrizada con depósitos
   ProductoDepositos ProductoDeposito[]
 
