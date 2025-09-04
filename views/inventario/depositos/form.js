@@ -1,6 +1,11 @@
 const layout = require('../../layout');
 
-module.exports = ({ deposito, action }) => {
+module.exports = ({ deposito, action, tipos }) => {
+  const options = (tipos || [])
+    .map(
+      (t) => `<option value="${t.id}" ${deposito.tipo_id == t.id ? 'selected' : ''}>${t.nombre}</option>`
+    )
+    .join('');
   return layout({
     content: `
       <section class="section">
@@ -9,7 +14,12 @@ module.exports = ({ deposito, action }) => {
           <div class="field">
             <label class="label">Tipo de depósito</label>
             <div class="control">
-              <input class="input" name="tipo" value="${deposito.tipo || ''}" />
+              <div class="select is-fullwidth">
+                <select name="tipo_id">
+                  <option value="">Seleccione</option>
+                  ${options}
+                </select>
+              </div>
             </div>
           </div>
           <div class="field">
