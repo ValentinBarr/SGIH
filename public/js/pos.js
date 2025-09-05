@@ -1,145 +1,112 @@
 (() => {
-  const $ = (s, r = document) => r.querySelector(s);
-  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const $ = (s,r=document)=>r.querySelector(s);
+  const depSel = $('#dep');
+  const body = $('#cart-body');
+  const totalEl = $('#cart-total');
+  const payBtn = $('#btn-pay');
+  const msg = $('#msg');
 
-  const depSel = $('#pos-dep');
-  const note = $('#pos-note');
-  const tbody = $('#cart-body');
-  const totalEl = $('#pos-total');
-  const errorEl = $('#pos-error');
-  const okEl = $('#pos-ok');
-  const search = $('#pos-search');
+  let cart = []; // {id, nombre, uom, precio?, qty}
 
-  const cart = new Map(); // key: prodId, value: {name, price, qty}
-
-  function money(n) {
-    return (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function flash(ok, t){
+    msg.className = 'help ' + (ok?'is-success':'is-danger');
+    msg.textContent = t;
+    msg.style.display = 'block';
+    setTimeout(()=> msg.style.display='none', 3000);
   }
 
-  function renderCart() {
-    tbody.innerHTML = '';
-    if (cart.size === 0) {
-      tbody.innerHTML = `<tr class="is-empty"><td colspan="5" class="has-text-grey has-text-centered">Sin items</td></tr>`;
+  function render(){
+    if (!cart.length) {
+      body.innerHTML = '<tr><td colspan="5" class="has-text-grey has-text-centered">Sin items</td></tr>';
       totalEl.textContent = '$0.00';
+      payBtn.disabled = true;
       return;
     }
-    let total = 0;
-    for (const [id, it] of cart) {
-      const line = it.price * it.qty;
-      total += line;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${it.name}</td>
+    const rows = cart.map(i => {
+      const pu = i.precio ? Number(i.precio) : 0;
+      const t = pu * i.qty;
+      return `<tr>
+        <td>${i.nombre}</td>
         <td class="has-text-centered">
-          <div class="field has-addons is-justify-content-center">
-            <p class="control"><button class="button is-small js-minus" data-id="${id}">-</button></p>
-            <p class="control"><input class="input is-small js-qty" data-id="${id}" style="width:56px" type="number" min="1" step="1" value="${it.qty}"></p>
-            <p class="control"><button class="button is-small js-plus" data-id="${id}">+</button></p>
+          <div class="qty-box">
+            <button class="button is-small is-light js-dec" data-id="${i.id}">-</button>
+            <input class="input is-small js-qty" style="width:56px;text-align:center" type="number" min="1" step="1" value="${i.qty}" data-id="${i.id}">
+            <button class="button is-small is-light js-inc" data-id="${i.id}">+</button>
           </div>
         </td>
-        <td class="has-text-right">$${money(it.price)}</td>
-        <td class="has-text-right">$${money(line)}</td>
-        <td class="is-narrow"><button class="button is-small is-danger js-del" data-id="${id}"><i class="fas fa-times"></i></button></td>
-      `;
-      tbody.appendChild(tr);
-    }
-    totalEl.textContent = '$' + money(total);
+        <td class="has-text-right">${pu ? '$'+pu.toFixed(2) : '—'}</td>
+        <td class="has-text-right">${pu ? '$'+t.toFixed(2) : '—'}</td>
+        <td class="has-text-right"><button class="button is-small is-light js-del" data-id="${i.id}">✕</button></td>
+      </tr>`;
+    }).join('');
+    body.innerHTML = rows;
+
+    const total = cart.reduce((a,i)=> a + (i.precio?Number(i.precio):0) * i.qty, 0);
+    totalEl.textContent = '$' + total.toFixed(2);
+    payBtn.disabled = !depSel.value || !cart.length;
   }
 
-  function addProductRowEvents() {
-    $$('#pos-products .js-add').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = Number(btn.dataset.id);
-        const row = btn.closest('tr');
-        const name = row.children[1].textContent.trim();
-        const price = Number(row.dataset.price || 0);
-        const it = cart.get(id) || { name, price, qty: 0 };
-        it.qty += 1;
-        cart.set(id, it);
-        renderCart();
-      });
-    });
-  }
-
-  // qty controls
-  tbody.addEventListener('click', (e) => {
-    const id = Number(e.target?.dataset?.id);
-    if (e.target.classList.contains('js-plus')) {
-      const it = cart.get(id); it.qty += 1; cart.set(id, it); renderCart();
-    }
-    if (e.target.classList.contains('js-minus')) {
-      const it = cart.get(id); it.qty = Math.max(1, it.qty - 1); cart.set(id, it); renderCart();
-    }
-    if (e.target.classList.contains('js-del')) {
-      cart.delete(id); renderCart();
+  // agregar desde catálogo
+  document.addEventListener('click',(e)=>{
+    if(e.target.classList.contains('js-add')){
+      if(!depSel.value) return flash(false,'Elegí el Depósito POS primero');
+      const host = e.target.closest('.pos-item');
+      const id = Number(host.dataset.id);
+      const found = cart.find(i=>i.id===id);
+      if(found){ found.qty++; } else {
+        cart.push({ id, nombre: host.dataset.nombre, uom: host.dataset.uom || 'UN', precio: host.dataset.precio || null, qty:1 });
+      }
+      render();
     }
   });
 
-  tbody.addEventListener('change', (e) => {
-    if (e.target.classList.contains('js-qty')) {
+  // eventos del carrito
+  body.addEventListener('click',(e)=>{
+    const id = Number(e.target.dataset.id);
+    if(e.target.classList.contains('js-del')){
+      cart = cart.filter(i=>i.id!==id);
+      render();
+    }
+    if(e.target.classList.contains('js-inc')){
+      const it = cart.find(i=>i.id===id); if(it){ it.qty++; render(); }
+    }
+    if(e.target.classList.contains('js-dec')){
+      const it = cart.find(i=>i.id===id); if(it){ it.qty = Math.max(1, it.qty-1); render(); }
+    }
+  });
+  body.addEventListener('change',(e)=>{
+    if(e.target.classList.contains('js-qty')){
       const id = Number(e.target.dataset.id);
-      const it = cart.get(id);
-      const v = Math.max(1, Number(e.target.value || 1));
-      it.qty = v; cart.set(id, it); renderCart();
+      const it = cart.find(i=>i.id===id);
+      if(it){ it.qty = Math.max(1, Number(e.target.value)||1); render(); }
     }
   });
 
-  // filtro de productos en la tabla (simple contains)
-  search.addEventListener('input', () => {
-    const q = search.value.toLowerCase();
-    $$('#pos-products tbody tr').forEach(tr => {
-      const name = tr.children[1].textContent.toLowerCase();
-      tr.style.display = name.includes(q) ? '' : 'none';
-    });
-  });
+  depSel.addEventListener('change', render);
 
-  function flash(el, msg) {
-    okEl.style.display = 'none';
-    errorEl.style.display = 'none';
-    el.textContent = msg;
-    el.style.display = 'block';
-    setTimeout(() => (el.style.display = 'none'), 4000);
-  }
+  // checkout
+  payBtn.addEventListener('click', async ()=>{
+    const depId = depSel.value;
+    if(!depId || !cart.length) return;
 
-  async function checkStock() {
-    const depId = Number(depSel.value);
-    const items = Array.from(cart.entries()).map(([prodId, it]) => ({
-      prodId, qty: it.qty,
-    }));
-    const r = await fetch('/pos/check', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ depId, items }),
-    });
-    return r.json();
-  }
-
-  $('#pos-pay').addEventListener('click', async () => {
-    if (cart.size === 0) return flash(errorEl, 'Agregá al menos un producto.');
-    const depId = Number(depSel.value);
-    // 1) validar
-    const res = await checkStock();
-    if (!res.ok) {
-      const msg = res.faltantes.map(f => `${f.nombre}: stock ${f.stock}, pedido ${f.qty}`).join(' | ');
-      return flash(errorEl, 'Sin stock suficiente → ' + msg);
-    }
-    // 2) checkout
-    const payload = {
-      depId,
-      nota: note.value || 'Ticket POS',
-      items: Array.from(cart.entries()).map(([prodId, it]) => ({ prodId, qty: it.qty })),
-    };
+    const items = cart.map(i => ({ prodId: i.id, qty: i.qty, uom: i.uom }));
     const r = await fetch('/pos/checkout', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ depId: Number(depId), items })
     });
     const data = await r.json();
-    if (!data.ok) {
-      return flash(errorEl, data.error || 'Error al procesar el pago');
+
+    if (!r.ok) {
+      if (data.faltantes) {
+        const txt = data.faltantes.map(f=>`${f.nombre}: stock ${f.stock} < qty ${f.qty}`).join(' | ');
+        return flash(false, 'Faltantes: ' + txt);
+      }
+      return flash(false, data.error || 'Error al procesar');
     }
-    cart.clear(); renderCart();
-    flash(okEl, `Venta registrada. Doc #${data.docId}`);
+    flash(true, `Venta registrada. Doc #${data.docId}`);
+    cart = []; render();
   });
 
-  // arrancar
-  addProductRowEvents();
+  // init
+  render();
 })();

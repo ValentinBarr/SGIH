@@ -29,43 +29,33 @@ router.get('/inventarios/stock', async (req, res) => {
 });
 
 // Acción: Registrar Entrada (POSTED)
-router.post('/inventarios/stock/entrada', express.json(), async (req, res) => {
+// routes/admin/inventario/stock.js  (o donde tengas los endpoints)
+router.post('/inventarios/stock/entrada', async (req, res) => {
   try {
-    const { depId, items, nota } = req.body || {};
-    if (!depId || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ ok: false, error: 'Datos inválidos' });
-    }
-    const doc = await StockRepo.registrarEntrada({
-      depId: Number(depId),
-      items: items.map(i => ({ prodId: Number(i.prodId), qty: Number(i.qty), costo: i.costo ? Number(i.costo) : null })),
-      nota: nota || 'Entrada manual'
-    });
-    res.json({ ok: true, docId: doc.docId_compInv });
+    const { depId, items, nota } = req.body;
+    const doc = await StockRepo.registrarEntrada({ depId, items, nota }); 
+    // doc.docId_compInv es BigInt
+
+    res.json({ ok: true, docId: Number(doc.docId_compInv) }); // <- convertir a number o string
   } catch (e) {
     console.error(e);
-    res.status(500).json({ ok: false, error: 'Error registrando entrada' });
+    res.status(400).json({ ok: false, error: e.message });
   }
 });
 
-// Acción: Transferencia sugerida (POSTED)
-router.post('/inventarios/stock/transfer', express.json(), async (req, res) => {
+router.post('/inventarios/stock/transfer', async (req, res) => {
   try {
-    const { fromDepId, toDepId, items, nota } = req.body || {};
-    if (!fromDepId || !toDepId || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ ok: false, error: 'Datos inválidos' });
-    }
-    const result = await StockRepo.registrarTransferencia({
-      fromDepId: Number(fromDepId),
-      toDepId: Number(toDepId),
-      items: items.map(i => ({ prodId: Number(i.prodId), qty: Number(i.qty) })),
-      nota: nota || 'Transferencia sugerida'
-    });
-    if (!result.ok) return res.status(400).json(result);
-    res.json({ ok: true, docId: result.doc.docId_compInv });
+    const { fromDepId, toDepId, items, nota } = req.body;
+    const doc = await StockRepo.registrarTransferencia({ fromDepId, toDepId, items, nota });
+
+    res.json({ ok: true, docId: Number(doc.docId_compInv) });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ ok: false, error: 'Error registrando transferencia' });
+    // si traes faltantes, asegurate que sea serializable:
+    // { faltantes: [{ id_prod, nombre, stock: Number(stock), qty }] }
+    res.status(400).json({ ok: false, error: e.message, faltantes: req.faltantes||undefined });
   }
 });
+
 
 module.exports = router;
