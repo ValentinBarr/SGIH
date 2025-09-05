@@ -1,6 +1,6 @@
 const express = require('express');
 const ProductsRepo = require('../../../repositories/products.js');
-const productsTemplate = require('../../../views/admin/products/inventario/inventario.js');
+const productsTemplate = require('../../../views/admin/products/inventario/productos');
 
 const router = express.Router();
 
