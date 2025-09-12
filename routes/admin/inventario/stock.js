@@ -57,5 +57,22 @@ router.post('/inventarios/stock/transfer', async (req, res) => {
   }
 });
 
+// Acción: Registrar Salida (POSTED)
+router.post('/inventarios/stock/salida', async (req, res) => {
+  try {
+    const { depId, items, nota } = req.body;
+    const result = await StockRepo.registrarSalida({ depId, items, nota });
+
+    if (!result.ok) {
+      return res.status(400).json({ ok: false, error: 'Stock insuficiente', faltantes: result.faltantes });
+    }
+
+    res.json({ ok: true, docId: Number(result.doc.docId_compInv) });
+  } catch (e) {
+    console.error(e);
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
 
 module.exports = router;

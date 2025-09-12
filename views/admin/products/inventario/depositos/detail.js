@@ -4,7 +4,7 @@ module.exports = ({ dep, grid }) => {
   const depId = dep.id_dep;
   const tipo = dep.TipoDeposito?.nombre_tipoDep || '';
 
-  const tbody = grid.length
+  const tbody = (grid && grid.length)
     ? grid.map(r => `
         <tr>
           <td>
@@ -29,10 +29,8 @@ module.exports = ({ dep, grid }) => {
     </div>
     <div style="flex:1"></div>
     <div class="buttons">
-      <a class="button is-primary is-light" href="/inventarios/acciones/entrada?depId=${depId}">Entrada</a>
-      <a class="button is-link is-light" href="/inventarios/acciones/transfer?fromId=${depId}">Transferencia</a>
-      <a class="button is-warning is-light" href="/inventarios/acciones/conteo?depId=${depId}">Conteo</a>
-      <a class="button is-danger is-light" href="/inventarios/acciones/ajuste?depId=${depId}">Ajuste</a>
+      <a class="button is-primary is-light" href="/inventarios/acciones/entrada?depId=${depId}">Registrar entrada</a>
+      <a class="button is-link is-light"    href="/inventarios/acciones/salida?depId=${depId}">Registrar salida</a>
     </div>
   </div>
 
@@ -54,8 +52,8 @@ module.exports = ({ dep, grid }) => {
 </section>
 
 <style>
-.prod-name { font-weight: 600 }
-.meta { font-size:.85rem;color:#7a7a7a }
+  .prod-name { font-weight: 600 }
+  .meta { font-size:.85rem;color:#7a7a7a }
 </style>
 `
   });

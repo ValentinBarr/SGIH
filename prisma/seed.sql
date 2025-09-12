@@ -4,6 +4,125 @@ BEGIN;
 -- A) AJUSTE (+) en Housekeeping (2 líneas)
 ----------------------------------------------------------------
 -- Cabecera (si no existe)
+
+
+INSERT INTO "TipoDeposito"
+("nombre_tipoDep","esPuntoDeVenta_tipoDep","esConsumoInterno_tipoDep","frecuenciaConteoDias_tipoDep","activo_tipoDep")
+VALUES
+('Central',        false, false, 30, true),
+('Bar',            true,  false, 7,  true),
+('Housekeeping',   false, true,  7,  true),
+('Minibar',        true,  false, 1,  true),
+('Punto de Venta', true,  false, 7,  true),
+('Cocina',         false, true,  7,  true);
+
+INSERT INTO "TipoMovimiento" ("Nombre","Direccion","Dominio","Activo") VALUES
+('Entrada por compra',           'IN',  'COMPRA',        true),
+('Salida por venta',             'OUT', 'VENTA',         true),
+('Salida por transferencia',     'OUT', 'TRANSFERENCIA', true),
+('Entrada por transferencia',    'IN',  'TRANSFERENCIA', true),
+('Ajuste de entrada',            'IN',  'AJUSTE',        true),
+('Ajuste de salida',             'OUT', 'AJUSTE',        true),
+('Conteo: sobrante (ajuste +)',  'IN',  'CONTEO',        true),
+('Conteo: faltante (ajuste -)',  'OUT', 'CONTEO',        true);
+
+
+INSERT INTO "Producto"
+("nombre_prod","unidad_prod","tipo_prod","stockeable_prod","vendible_prod","descuentaStockVenta_prod","stockMinimoGlobal_prod","activo_prod","precio_prod")
+VALUES
+('Agua Mineral 500ml',        'UN', 'VENDIBLE', true,  true,  true,  50.000,  true, 1200.00),
+('Snack Mix 50g',             'UN', 'VENDIBLE', true,  true,  true,  30.000,  true, 1800.00),
+('Gin Tonic',                 'UN', 'VENDIBLE', false, true,  true,  NULL,    true, 5000.00),  
+('Desayuno Buffet',           'SRV','SERVICE',  false, true,  false, NULL,    true, 8000.00),  
+('Shampoo Hotelero 30ml',     'UN', 'AMENITY',  true,  false, false, 200.000, true, NULL),
+('Toalla Blanca',             'UN', 'LINEN',    true,  false, false, 50.000,  true, NULL),
+('Detergente Líquido 5L',     'LT', 'INSUMO',   true,  false, false, 10.000,  true, NULL),
+('Sábanas King Size',         'UN', 'LINEN',    true,  false, false, 20.000,  true, NULL),
+('Café Doble',                'UN', 'VENDIBLE', false, true,  true,  NULL,    true, 2000.00),  
+('Panificados p/ desayuno',   'KG', 'INSUMO',   true,  false, false, 15.000,  true, NULL);
+
+INSERT INTO "Deposito" ("id_tipoDep","nombre_dep","activo_dep")
+VALUES
+((SELECT "id_tipoDep" FROM "TipoDeposito" WHERE "nombre_tipoDep"='Central'),       'Central',             true),
+((SELECT "id_tipoDep" FROM "TipoDeposito" WHERE "nombre_tipoDep"='Bar'),           'Bar Planta Baja',     true),
+((SELECT "id_tipoDep" FROM "TipoDeposito" WHERE "nombre_tipoDep"='Housekeeping'),  'Housekeeping Piso 1', true),
+((SELECT "id_tipoDep" FROM "TipoDeposito" WHERE "nombre_tipoDep"='Housekeeping'),  'Housekeeping Piso 2', true),
+((SELECT "id_tipoDep" FROM "TipoDeposito" WHERE "nombre_tipoDep"='Minibar'),       'Minibar Piso 1',      true),
+((SELECT "id_tipoDep" FROM "TipoDeposito" WHERE "nombre_tipoDep"='Cocina'),        'Cocina Principal',    true),
+((SELECT "id_tipoDep" FROM "TipoDeposito" WHERE "nombre_tipoDep"='Punto de Venta'),'Kiosco Lobby',        true);
+
+INSERT INTO "ProductoDeposito"
+("id_prod","id_dep","minimo_prodDep","parLevel_prodDep","maximo_prodDep","loteReposicion_prodDep","ubicacion_prodDep")
+VALUES
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Agua Mineral 500ml'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Central'),
+60.000,120.000,240.000,24.000,'CEN-BEV-01'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Snack Mix 50g'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Central'),
+40.000, 80.000,160.000,20.000,'CEN-SNK-01'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Shampoo Hotelero 30ml'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Central'),
+200.000,400.000,800.000,100.000,'CEN-HK-01'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Toalla Blanca'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Central'),
+50.000,100.000,200.000,25.000,'CEN-LIN-01'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Detergente Líquido 5L'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Central'),
+10.000, 20.000, 40.000, 5.000,'CEN-QL-01'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Sábanas King Size'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Central'),
+20.000, 40.000, 80.000,10.000,'CEN-LIN-02'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Panificados p/ desayuno'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Central'),
+15.000, 30.000, 60.000, 5.000,'CEN-COC-01'),
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Agua Mineral 500ml'),
+(SELECT "id_dep" FROM "Deposito" WHERE "nombre_dep"='Bar Planta Baja'),
+12.000, 24.000, 48.000, 6.000,'BAR-BEV-01'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Snack Mix 50g'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Bar Planta Baja'),
+10.000, 20.000, 40.000, 5.000,'BAR-SNK-01'),
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Agua Mineral 500ml'),
+(SELECT "id_dep" FROM "Deposito" WHERE "nombre_dep"='Minibar Piso 1'),
+24.000, 48.000, 96.000,12.000,'MB-P1-01'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Snack Mix 50g'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Minibar Piso 1'),
+24.000, 48.000, 96.000,12.000,'MB-P1-02'),
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Shampoo Hotelero 30ml'),
+(SELECT "id_dep" FROM "Deposito" WHERE "nombre_dep"='Housekeeping Piso 1'),
+25.000, 50.000,100.000,25.000,'HK-P1-01'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Toalla Blanca'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Housekeeping Piso 1'),
+20.000, 40.000, 80.000,10.000,'HK-P1-02'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Sábanas King Size'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Housekeeping Piso 1'),
+10.000, 20.000, 40.000,10.000,'HK-P1-03'),
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Panificados p/ desayuno'),
+(SELECT "id_dep" FROM "Deposito" WHERE "nombre_dep"='Cocina Principal'),
+10.000, 20.000, 40.000, 5.000,'COC-01'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Detergente Líquido 5L'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Cocina Principal'),
+5.000, 10.000, 20.000, 2.000,'COC-02'),
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Agua Mineral 500ml'),
+(SELECT "id_dep" FROM "Deposito" WHERE "nombre_dep"='Kiosco Lobby'),
+8.000, 16.000, 32.000, 4.000,'KIO-BEV-01'),
+
+((SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Snack Mix 50g'),
+(SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Kiosco Lobby'),
+8.000, 16.000, 32.000, 4.000,'KIO-SNK-01')
+ON CONFLICT ("id_prod","id_dep") DO NOTHING;
+
+
 INSERT INTO "ComprobanteInventario"
 ("docType_compInv","fecha_compInv","estado_compInv","fromDepId_compInv","toDepId_compInv","observacion_compInv")
 SELECT 'AJUSTE','2025-09-09 09:00:00','POSTED',NULL,NULL,'Ajuste inventario HK'
