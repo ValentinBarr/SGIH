@@ -4,6 +4,7 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -15,12 +16,11 @@ datasource db {
 }
 
 // ----------------------------
-// Modelo Producto
+// Producto
 // ----------------------------
 model Producto {
   id_prod                  Int       @id @default(autoincrement())
   nombre_prod              String    @db.VarChar(120)
-  unidad_prod              String    @db.VarChar(10)   // UN, KG, LT, ML
   tipo_prod                String    @db.VarChar(20)   // INSUMO, VENDIBLE, AMENITY, etc.
   stockeable_prod          Boolean
   vendible_prod            Boolean
@@ -28,16 +28,12 @@ model Producto {
   stockMinimoGlobal_prod   Decimal?  @db.Decimal(18, 3)
   activo_prod              Boolean
   fechaAlta_prod           DateTime  @default(now())
-  precio_prod              Decimal?  @db.Decimal(18, 2)
-  // Relación N:M parametrizada con depósitos
-  ProductoDepositos ProductoDeposito[]
 
-  // Detalle de movimientos (opcional, útil para navegación)
-  Movimientos MovimientoInventario[]
+  ProductoDepositos ProductoDeposito[]
 }
 
 // ----------------------------
-// Modelo TipoDeposito
+// TipoDeposito
 // ----------------------------
 model TipoDeposito {
   id_tipoDep                   Int     @id @default(autoincrement())
@@ -47,121 +43,147 @@ model TipoDeposito {
   frecuenciaConteoDias_tipoDep Int
   activo_tipoDep               Boolean
 
-  // Relación 1:N con Depósitos
   Depositos Deposito[]
 }
 
 // ----------------------------
-// Modelo Deposito
+// Deposito
 // ----------------------------
 model Deposito {
   id_dep        Int       @id @default(autoincrement())
   id_tipoDep    Int
   nombre_dep    String    @db.VarChar(80)
+  ubicacion_dep String?   @db.VarChar(120)
   activo_dep    Boolean
   fechaAlta_dep DateTime  @default(now())
 
-  // Relación con TipoDeposito
-  TipoDeposito TipoDeposito @relation(fields: [id_tipoDep], references: [id_tipoDep])
-
-  // Relación N:M parametrizada con productos
+  TipoDeposito      TipoDeposito      @relation(fields: [id_tipoDep], references: [id_tipoDep])
   ProductoDepositos ProductoDeposito[]
-
-  // Movimientos que afectan a este depósito (opcional)
-  Movimientos MovimientoInventario[]
-
-  // Back-relations para las dos FKs desde ComprobanteInventario
-  FromComprobantes ComprobanteInventario[] @relation("FromDeposito")
-  ToComprobantes   ComprobanteInventario[] @relation("ToDeposito")
+  Comprobantes      Comprobante[]
 }
 
-
 // ----------------------------
-// Modelo ProductoDeposito (tabla asociativa)
+// ProductoDeposito
 // ----------------------------
 model ProductoDeposito {
-  // PK compuesta
+  id_prodDep Int @id @default(autoincrement())
+
   id_prod Int
   id_dep  Int
 
-  // Parámetros del producto en ese depósito
   minimo_prodDep         Decimal   @db.Decimal(18, 3)
-  parLevel_prodDep       Decimal   @db.Decimal(18, 3)
   maximo_prodDep         Decimal?  @db.Decimal(18, 3)
   loteReposicion_prodDep Decimal?  @db.Decimal(18, 3)
   ubicacion_prodDep      String?   @db.VarChar(30)
-  ultimoConteo_prodDep   DateTime?
 
-  // Relaciones
   Producto Producto @relation(fields: [id_prod], references: [id_prod])
   Deposito Deposito @relation(fields: [id_dep],  references: [id_dep])
 
-  @@id([id_prod, id_dep])
+  DetallesComprobantes DetalleComprobante[]
+
   @@index([id_prod])
   @@index([id_dep])
 }
 
 // ----------------------------
-// Modelo Tipo de Movimiento
+// Proveedor
+// ----------------------------
+model Proveedor {
+  id_prov        Int      @id @default(autoincrement())
+  nombre_prov    String   @db.VarChar(120)
+  cuit_prov      String   @db.VarChar(20)
+  direccion_prov String?  @db.VarChar(200)
+  telefono_prov  String?  @db.VarChar(50)
+  email_prov     String?  @db.VarChar(120)
+  activo_prov    Boolean  @default(true)
+  fechaAlta_prov DateTime @default(now())
+
+  Comprobantes Comprobante[]
+}
+
+// ----------------------------
+// FormaPago
+// ----------------------------
+model FormaPago {
+  id_fp   Int     @id @default(autoincrement())
+  nombre  String  @db.VarChar(80)   // Efectivo, Transferencia, Cheque, etc.
+  activo  Boolean @default(true)
+
+  Comprobantes Comprobante[]
+}
+
+// ----------------------------
+// TipoMovimiento (Entrada / Salida)
 // ----------------------------
 model TipoMovimiento {
-  TipoMovimientoId Int    @id @default(autoincrement())
-  Nombre           String @db.VarChar(60)  // etiqueta legible
-  Direccion        String @db.Char(3)      // IN | OUT
-  Dominio          String @db.VarChar(20)  // COMPRA | VENTA | TRANSFERENCIA | AJUSTE | CONTEO
-  Activo           Boolean
+  id_tipoMov Int     @id @default(autoincrement())
+  nombre     String  @db.VarChar(60)   // Entrada, Salida
+  direccion  String  @db.Char(3)       // IN | OUT
+  activo     Boolean @default(true)
 
-  Movimientos MovimientoInventario[]
+  TiposComprobantes TipoComprobante[]
 }
 
 // ----------------------------
-// ComprobanteInventario (Cabecera)
+// TipoComprobante
 // ----------------------------
-model ComprobanteInventario {
-  docId_compInv        BigInt   @id @default(autoincrement())
-  docType_compInv      String   @db.VarChar(20)   // COMPRA | VENTA | TRANSFERENCIA | AJUSTE | CONTEO
-  fecha_compInv        DateTime @default(now())
-  estado_compInv       String   @db.VarChar(12)   // DRAFT | POSTED
-  fromDepId_compInv    Int?
-  toDepId_compInv      Int?
-  observacion_compInv  String?  @db.VarChar(250)
+model TipoComprobante {
+  id_tipoComp Int     @id @default(autoincrement())
+  codigo      String  @db.VarChar(10)   // OC, FAC, REM, AJU, CON
+  nombre      String  @db.VarChar(80)
+  descripcion String? @db.VarChar(200)
+  afectaStock Boolean @default(false)
+  activo      Boolean @default(true)
 
-  // FKs opcionales hacia Depósito (dos relaciones distintas al mismo modelo)
-  FromDeposito Deposito? @relation("FromDeposito", fields: [fromDepId_compInv], references: [id_dep])
-  ToDeposito   Deposito? @relation("ToDeposito",   fields: [toDepId_compInv],   references: [id_dep])
+  id_tipoMov Int
+  TipoMovimiento TipoMovimiento @relation(fields: [id_tipoMov], references: [id_tipoMov])
 
-  // Relación 1:N con detalle
-  Movimientos MovimientoInventario[]
+  Comprobantes Comprobante[]
 
-  @@index([fromDepId_compInv])
-  @@index([toDepId_compInv])
+  @@index([id_tipoMov])
 }
 
-
 // ----------------------------
-// MovimientoInventario (Detalle)
+// Comprobante (Encabezado)
 // ----------------------------
-model MovimientoInventario {
-  lineaId_movInv       BigInt    @id @default(autoincrement())
-  docId_compInv        BigInt
-  id_prod              Int
-  id_dep               Int
-  tipoMovId_movInv     Int
-  cantidad_movInv      Decimal   @db.Decimal(18, 3)
-  costoUnitario_movInv Decimal?  @db.Decimal(18, 4)
-  uom_movInv           String?   @db.VarChar(10)
-  nota_movInv          String?   @db.VarChar(200)
+model Comprobante {
+  id_comp       Int      @id @default(autoincrement())
+  id_tipoComp   Int
+  fecha         DateTime
+  estado        String   @db.VarChar(20)   // BORRADOR, POSTED, PAGADO
+  id_prov       Int?
+  id_dep        Int?     // depósito afectado si aplica
+  id_fp         Int?     // forma de pago si aplica
+  observacion   String?  @db.VarChar(250)
 
-  // Relaciones (alineadas con los PKs reales)
-  Comprobante    ComprobanteInventario @relation(fields: [docId_compInv],    references: [docId_compInv])
-  Producto       Producto              @relation(fields: [id_prod],          references: [id_prod])
-  Deposito       Deposito              @relation(fields: [id_dep],           references: [id_dep])
-  TipoMovimiento TipoMovimiento        @relation(fields: [tipoMovId_movInv], references: [TipoMovimientoId])
+  TipoComprobante TipoComprobante @relation(fields: [id_tipoComp], references: [id_tipoComp])
+  Proveedor       Proveedor?      @relation(fields: [id_prov], references: [id_prov])
+  Deposito        Deposito?       @relation(fields: [id_dep], references: [id_dep])
+  FormaPago       FormaPago?      @relation(fields: [id_fp], references: [id_fp])
 
-  @@index([docId_compInv])
-  @@index([id_prod])
+  Detalles DetalleComprobante[]
+
+  @@index([id_tipoComp])
+  @@index([id_prov])
   @@index([id_dep])
-  @@index([tipoMovId_movInv])
+  @@index([id_fp])
+}
+
+// ----------------------------
+// DetalleComprobante
+// ----------------------------
+model DetalleComprobante {
+  id_det     Int     @id @default(autoincrement())
+  id_comp    Int
+  id_prodDep Int
+  cantidad   Decimal @db.Decimal(18, 3)
+  precio     Decimal? @db.Decimal(18, 2)
+
+  Comprobante     Comprobante     @relation(fields: [id_comp], references: [id_comp])
+  ProductoDeposito ProductoDeposito @relation(fields: [id_prodDep], references: [id_prodDep])
+
+  @@index([id_comp])
+  @@index([id_prodDep])
 }
 
 

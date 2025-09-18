@@ -9,11 +9,11 @@ module.exports = ({ dep, grid }) => {
         <tr>
           <td>
             <div class="prod-name">${r.nombre}</div>
-            <div class="meta">${r.uom}</div>
+            <div class="meta">${r.ubicacion || ''}</div>
           </td>
           <td class="has-text-centered">${r.stock}</td>
           <td class="has-text-right">
-            <span class="tag ${r.estado === 'Bajo' ? 'is-danger' : 'is-success'}">${r.estado}</span>
+            <span class="tag ${r.estado === 'BAJO' ? 'is-danger' : 'is-success'}">${r.estado}</span>
           </td>
         </tr>
       `).join('')

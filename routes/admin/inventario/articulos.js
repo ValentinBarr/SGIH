@@ -1,4 +1,4 @@
-const express = require('express');
+const express = require('express'); 
 const ProductsRepo = require('../../../repositories/products.js');
 const productsTemplate = require('../../../views/admin/products/inventario/articulos/productos.js');
 const renderForm  = require('../../../views/admin/products/inventario/articulos/form');
@@ -6,14 +6,13 @@ const router = express.Router();
 
 router.get('/inventarios/articulos', async (req,res)=>{
     const { q, tipo, stockeable, activo } = req.query;
-
     const products = await ProductsRepo.list({q, tipo, stockeable, activo});
 
-    res.send(productsTemplate({products, filters: {
-            products,
-            filters: { q: q || '', tipo: tipo || '', stockeable: stockeable || '', activo: activo || '' },
-            basePath: '/inventarios/articulos', // para el link "Limpiar"
-    }}));
+    res.send(productsTemplate({
+        products,
+        filters: { q: q || '', tipo: tipo || '', stockeable: stockeable || '', activo: activo || '' },
+        basePath: '/inventarios/articulos'
+    }));  
 });
 
 // NUEVO (form)
@@ -24,7 +23,6 @@ router.get('/inventarios/articulos/new', (req, res) => {
 // CREAR (post)
 router.post('/inventarios/articulos/new', async (req, res) => {
   const b = req.body || {};
-  console.log('BODY EN NEW:', b); // ← mirá esto en consola al enviar
 
   const data = {
     nombre_prod: (b.nombre_prod || '').trim(),
@@ -34,8 +32,6 @@ router.post('/inventarios/articulos/new', async (req, res) => {
     vendible_prod: !!b.vendible_prod,
     descuentaStockVenta_prod: !!b.descuentaStockVenta_prod,
     activo_prod: !!b.activo_prod,
-    precio_prod: b.precio_prod ? Number(b.precio_prod) : null,
-    stockMinimoGlobal_prod: b.stockMinimoGlobal_prod ? Number(b.stockMinimoGlobal_prod) : null,
   };
 
   const errors = {};
@@ -73,8 +69,6 @@ router.post('/inventarios/articulos/:id/edit', async (req, res) => {
       vendible_prod: !!b.vendible_prod,
       descuentaStockVenta_prod: !!b.descuentaStockVenta_prod,
       activo_prod: !!b.activo_prod,
-      precio_prod: b.precio_prod ? Number(b.precio_prod) : null,
-      stockMinimoGlobal_prod: b.stockMinimoGlobal_prod ? Number(b.stockMinimoGlobal_prod) : null,
     };
     await ProductsRepo.update(id, data);
     res.redirect('/inventarios/articulos');
@@ -87,6 +81,16 @@ router.post('/inventarios/articulos/:id/edit', async (req, res) => {
   }
 });
 
+router.post('/inventarios/articulos/:id/toggle', async (req, res) => {
+  const id = Number(req.params.id);
+  try {
+    await ProductsRepo.toggleActive(id);
+    res.redirect('/inventarios/articulos?ok=toggled');
+  } catch (err) {
+    console.error('Error al cambiar estado del producto:', err);
+    res.status(400).send(`No se pudo actualizar el artículo #${id}. Error: ${err.message}`);
+  }
+});
 
 
 module.exports = router;
