@@ -1,19 +1,15 @@
 const layout = require('../../layout');
 
-const UNIDADES = ['UN','KG','LT','ML','SRV'];
 const TIPOS = ['VENDIBLE','INSUMO','AMENITY','LINEN','SERVICE'];
 
 module.exports = ({ mode = 'new', producto = {}, errors = {} }) => {
   const p = {
     nombre_prod: '',
-    unidad_prod: 'UN',
     tipo_prod: 'VENDIBLE',
     stockeable_prod: false,
     vendible_prod: false,
     descuentaStockVenta_prod: false,
     activo_prod: true,
-    precio_prod: '',
-    stockMinimoGlobal_prod: '',
     ...producto
   };
   const title = mode === 'new' ? 'Nuevo Artículo' : `Editar Artículo #${p.id_prod||''}`;
@@ -35,16 +31,7 @@ module.exports = ({ mode = 'new', producto = {}, errors = {} }) => {
             <input class="input" name="nombre_prod" required value="${p.nombre_prod || ''}">
           </div>
 
-          <div class="column is-2">
-            <label class="label">Unidad</label>
-            <div class="select is-fullwidth">
-              <select name="unidad_prod">
-                ${UNIDADES.map(u => `<option value="${u}" ${p.unidad_prod===u?'selected':''}>${u}</option>`).join('')}
-              </select>
-            </div>
-          </div>
-
-          <div class="column is-4">
+          <div class="column is-6">
             <label class="label">Tipo</label>
             <div class="select is-fullwidth">
               <select name="tipo_prod">
@@ -53,18 +40,8 @@ module.exports = ({ mode = 'new', producto = {}, errors = {} }) => {
             </div>
           </div>
 
-          <div class="column is-3">
-            <label class="label">Precio</label>
-            <input class="input" type="number" step="0.01" name="precio_prod" value="${p.precio_prod ?? ''}">
-          </div>
-
-          <div class="column is-3">
-            <label class="label">Stock mínimo global</label>
-            <input class="input" type="number" step="0.001" name="stockMinimoGlobal_prod" value="${p.stockMinimoGlobal_prod ?? ''}">
-          </div>
-
-          <div class="column is-6">
-            <label class="label">Flags</label>
+          <div class="column is-12">
+            <label class="label">Opciones</label>
             <label class="checkbox" style="margin-right:12px;">
               <input type="checkbox" name="stockeable_prod" ${p.stockeable_prod ? 'checked':''}> Stockeable
             </label>
@@ -80,7 +57,7 @@ module.exports = ({ mode = 'new', producto = {}, errors = {} }) => {
           </div>
 
           <div class="column is-12" style="display:flex;gap:8px;justify-content:flex-end;">
-            <a class="button is-light" href="/admin/products">Cancelar</a>
+            <a class="button is-light" href="/inventarios/articulos">Cancelar</a>
             <button class="button is-primary">${mode==='new'?'Crear':'Guardar cambios'}</button>
           </div>
         </div>

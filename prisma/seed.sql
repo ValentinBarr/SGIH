@@ -1,224 +1,103 @@
-BEGIN;
+-- ========================
+-- CARGA INICIAL DE DATOS
+-- ========================
 
-----------------------------------------------------------------
--- A) AJUSTE (+) en Housekeeping (2 líneas)
-----------------------------------------------------------------
--- Cabecera (si no existe)
-INSERT INTO "ComprobanteInventario"
-("docType_compInv","fecha_compInv","estado_compInv","fromDepId_compInv","toDepId_compInv","observacion_compInv")
-SELECT 'AJUSTE','2025-09-09 09:00:00','POSTED',NULL,NULL,'Ajuste inventario HK'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "ComprobanteInventario"
-  WHERE "docType_compInv"='AJUSTE'
-    AND "fecha_compInv"='2025-09-09 09:00:00'
-    AND "observacion_compInv"='Ajuste inventario HK'
-);
+-- ------------------------
+-- TipoDeposito
+-- ------------------------
+INSERT INTO "TipoDeposito" 
+("nombre_tipoDep", "esPuntoDeVenta_tipoDep", "esConsumoInterno_tipoDep", "frecuenciaConteoDias_tipoDep", "activo_tipoDep")
+VALUES
+('Central', false, false, 30, true),
+('Bar', true, false, 15, true),
+('Housekeeping', false, true, 7, true);
 
--- Línea 1 (Toallas +5)
-INSERT INTO "MovimientoInventario"
-("docId_compInv","id_prod","id_dep","tipoMovId_movInv","cantidad_movInv","costoUnitario_movInv","uom_movInv","nota_movInv")
-SELECT
-  (SELECT "docId_compInv" FROM "ComprobanteInventario"
-   WHERE "docType_compInv"='AJUSTE' AND "fecha_compInv"='2025-09-09 09:00:00'
-         AND "observacion_compInv"='Ajuste inventario HK' LIMIT 1),
-  (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Toalla Blanca' LIMIT 1),
-  (SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Housekeeping Piso 1' LIMIT 1),
-  (SELECT "TipoMovimientoId" FROM "TipoMovimiento" WHERE "Dominio"='AJUSTE' AND "Direccion"='IN' LIMIT 1),
-  5::numeric, CAST(NULL AS numeric), 'UN', 'Toallas +5'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "MovimientoInventario" mi
-  WHERE mi."docId_compInv" = (SELECT "docId_compInv" FROM "ComprobanteInventario"
-                              WHERE "docType_compInv"='AJUSTE' AND "fecha_compInv"='2025-09-09 09:00:00'
-                                    AND "observacion_compInv"='Ajuste inventario HK' LIMIT 1)
-    AND mi."id_prod" = (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Toalla Blanca' LIMIT 1)
-    AND mi."nota_movInv" = 'Toallas +5'
-);
+-- ------------------------
+-- Deposito
+-- ------------------------
+INSERT INTO "Deposito" 
+("id_tipoDep", "nombre_dep", "ubicacion_dep", "activo_dep")
+VALUES
+(1, 'Depósito Central', 'Planta Baja', true),
+(2, 'Bar Principal', 'Planta Baja', true),
+(3, 'Housekeeping Piso 1', 'Piso 1', true);
 
--- Línea 2 (Shampoo +2)
-INSERT INTO "MovimientoInventario"
-("docId_compInv","id_prod","id_dep","tipoMovId_movInv","cantidad_movInv","costoUnitario_movInv","uom_movInv","nota_movInv")
-SELECT
-  (SELECT "docId_compInv" FROM "ComprobanteInventario"
-   WHERE "docType_compInv"='AJUSTE' AND "fecha_compInv"='2025-09-09 09:00:00'
-         AND "observacion_compInv"='Ajuste inventario HK' LIMIT 1),
-  (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Shampoo Hotelero 30ml' LIMIT 1),
-  (SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Housekeeping Piso 1' LIMIT 1),
-  (SELECT "TipoMovimientoId" FROM "TipoMovimiento" WHERE "Dominio"='AJUSTE' AND "Direccion"='IN' LIMIT 1),
-  2::numeric, CAST(NULL AS numeric), 'UN', 'Shampoo +2'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "MovimientoInventario" mi
-  WHERE mi."docId_compInv" = (SELECT "docId_compInv" FROM "ComprobanteInventario"
-                              WHERE "docType_compInv"='AJUSTE' AND "fecha_compInv"='2025-09-09 09:00:00'
-                                    AND "observacion_compInv"='Ajuste inventario HK' LIMIT 1)
-    AND mi."id_prod" = (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Shampoo Hotelero 30ml' LIMIT 1)
-    AND mi."nota_movInv" = 'Shampoo +2'
-);
+-- ------------------------
+-- Producto
+-- ------------------------
+INSERT INTO "Producto" 
+("nombre_prod", "unidad_prod", "tipo_prod", "stockeable_prod", "vendible_prod", "descuentaStockVenta_prod", "stockMinimoGlobal_prod", "activo_prod")
+VALUES
+('Coca Cola 500ml', 'UN', 'VENDIBLE', true, true, true, 20, true),
+('Detergente 1L', 'LT', 'INSUMO', true, false, false, 10, true),
+('Shampoo Sachet', 'UN', 'AMENITY', true, false, false, 50, true);
 
-----------------------------------------------------------------
--- B) VENTA (–) desde Kiosco (3 líneas)
-----------------------------------------------------------------
--- Cabecera
-INSERT INTO "ComprobanteInventario"
-("docType_compInv","fecha_compInv","estado_compInv","fromDepId_compInv","toDepId_compInv","observacion_compInv")
-SELECT 'VENTA','2025-09-09 10:30:00','POSTED',
-       (SELECT "id_dep" FROM "Deposito" WHERE "nombre_dep"='Kiosco Lobby' LIMIT 1),
-       NULL,'Ticket POS #KIO-0002'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "ComprobanteInventario"
-  WHERE "docType_compInv"='VENTA'
-    AND "fecha_compInv"='2025-09-09 10:30:00'
-    AND "observacion_compInv"='Ticket POS #KIO-0002'
-);
+-- ------------------------
+-- ProductoDeposito
+-- ------------------------
+INSERT INTO "ProductoDeposito" 
+("id_prod", "id_dep", "minimo_prodDep", "maximo_prodDep", "loteReposicion_prodDep", "ubicacion_prodDep")
+VALUES
+(1, 1, 10, 200, 50, 'Estante A1'),
+(2, 1, 5, 100, 20, 'Estante B2'),
+(3, 3, 20, 300, 100, 'Carro Amenities');
 
--- Agua x2
-INSERT INTO "MovimientoInventario"
-("docId_compInv","id_prod","id_dep","tipoMovId_movInv","cantidad_movInv","costoUnitario_movInv","uom_movInv","nota_movInv")
-SELECT
-  (SELECT "docId_compInv" FROM "ComprobanteInventario"
-   WHERE "docType_compInv"='VENTA' AND "fecha_compInv"='2025-09-09 10:30:00'
-         AND "observacion_compInv"='Ticket POS #KIO-0002' LIMIT 1),
-  (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Agua Mineral 500ml' LIMIT 1),
-  (SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Kiosco Lobby' LIMIT 1),
-  (SELECT "TipoMovimientoId" FROM "TipoMovimiento" WHERE "Dominio"='VENTA' AND "Direccion"='OUT' LIMIT 1),
-  2::numeric, CAST(NULL AS numeric), 'UN', 'Agua x2'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "MovimientoInventario" mi
-  WHERE mi."docId_compInv" = (SELECT "docId_compInv" FROM "ComprobanteInventario"
-                              WHERE "docType_compInv"='VENTA' AND "fecha_compInv"='2025-09-09 10:30:00'
-                                    AND "observacion_compInv"='Ticket POS #KIO-0002' LIMIT 1)
-    AND mi."id_prod" = (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Agua Mineral 500ml' LIMIT 1)
-    AND mi."nota_movInv" = 'Agua x2'
-);
+-- ------------------------
+-- Proveedor
+-- ------------------------
+INSERT INTO "Proveedor" 
+("nombre_prov", "cuit_prov", "direccion_prov", "telefono_prov", "email_prov", "activo_prov")
+VALUES
+('Distribuidora Norte', '30-12345678-9', 'Av. Belgrano 123', '387-4000000', 'ventas@norte.com', true),
+('Limpieza S.A.', '30-87654321-0', 'San Martín 456', '387-4555555', 'contacto@limpieza.com', true);
 
--- Snack x1
-INSERT INTO "MovimientoInventario"
-("docId_compInv","id_prod","id_dep","tipoMovId_movInv","cantidad_movInv","costoUnitario_movInv","uom_movInv","nota_movInv")
-SELECT
-  (SELECT "docId_compInv" FROM "ComprobanteInventario"
-   WHERE "docType_compInv"='VENTA' AND "fecha_compInv"='2025-09-09 10:30:00'
-         AND "observacion_compInv"='Ticket POS #KIO-0002' LIMIT 1),
-  (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Snack Mix 50g' LIMIT 1),
-  (SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Kiosco Lobby' LIMIT 1),
-  (SELECT "TipoMovimientoId" FROM "TipoMovimiento" WHERE "Dominio"='VENTA' AND "Direccion"='OUT' LIMIT 1),
-  1::numeric, CAST(NULL AS numeric), 'UN', 'Snack x1'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "MovimientoInventario" mi
-  WHERE mi."docId_compInv" = (SELECT "docId_compInv" FROM "ComprobanteInventario"
-                              WHERE "docType_compInv"='VENTA' AND "fecha_compInv"='2025-09-09 10:30:00'
-                                    AND "observacion_compInv"='Ticket POS #KIO-0002' LIMIT 1)
-    AND mi."id_prod" = (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Snack Mix 50g' LIMIT 1)
-    AND mi."nota_movInv" = 'Snack x1'
-);
+-- ------------------------
+-- FormaPago
+-- ------------------------
+INSERT INTO "FormaPago" ("nombre", "activo")
+VALUES
+('Efectivo', true),
+('Transferencia', true),
+('Cheque', true);
 
--- Shampoo x1
-INSERT INTO "MovimientoInventario"
-("docId_compInv","id_prod","id_dep","tipoMovId_movInv","cantidad_movInv","costoUnitario_movInv","uom_movInv","nota_movInv")
-SELECT
-  (SELECT "docId_compInv" FROM "ComprobanteInventario"
-   WHERE "docType_compInv"='VENTA' AND "fecha_compInv"='2025-09-09 10:30:00'
-         AND "observacion_compInv"='Ticket POS #KIO-0002' LIMIT 1),
-  (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Shampoo Hotelero 30ml' LIMIT 1),
-  (SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Kiosco Lobby' LIMIT 1),
-  (SELECT "TipoMovimientoId" FROM "TipoMovimiento" WHERE "Dominio"='VENTA' AND "Direccion"='OUT' LIMIT 1),
-  1::numeric, CAST(NULL AS numeric), 'UN', 'Shampoo x1'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "MovimientoInventario" mi
-  WHERE mi."docId_compInv" = (SELECT "docId_compInv" FROM "ComprobanteInventario"
-                              WHERE "docType_compInv"='VENTA' AND "fecha_compInv"='2025-09-09 10:30:00'
-                                    AND "observacion_compInv"='Ticket POS #KIO-0002' LIMIT 1)
-    AND mi."id_prod" = (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Shampoo Hotelero 30ml' LIMIT 1)
-    AND mi."nota_movInv" = 'Shampoo x1'
-);
+-- ------------------------
+-- TipoMovimiento
+-- ------------------------
+INSERT INTO "TipoMovimiento" 
+("nombre", "direccion", "activo")
+VALUES
+('Entrada', 'IN', true),
+('Salida', 'OUT', true);
 
-----------------------------------------------------------------
--- C) TRANSFERENCIA Minibar → Kiosco (2 líneas)
-----------------------------------------------------------------
--- Cabecera
-INSERT INTO "ComprobanteInventario"
-("docType_compInv","fecha_compInv","estado_compInv","fromDepId_compInv","toDepId_compInv","observacion_compInv")
-SELECT 'TRANSFERENCIA','2025-09-09 11:15:00','POSTED',
-       (SELECT "id_dep" FROM "Deposito" WHERE "nombre_dep"='Minibar Piso 1' LIMIT 1),
-       (SELECT "id_dep" FROM "Deposito" WHERE "nombre_dep"='Kiosco Lobby'   LIMIT 1),
-       'Reposición Kiosco desde Minibar'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "ComprobanteInventario"
-  WHERE "docType_compInv"='TRANSFERENCIA'
-    AND "fecha_compInv"='2025-09-09 11:15:00'
-    AND "observacion_compInv"='Reposición Kiosco desde Minibar'
-);
+-- ------------------------
+-- TipoComprobante
+-- ------------------------
+INSERT INTO "TipoComprobante" 
+("codigo", "nombre", "descripcion", "afectaStock", "activo", "id_tipoMov")
+VALUES
+('OC',  'Orden de Compra', 'Orden de compra a proveedor', false, true, 1),
+('FAC', 'Factura Proveedor', 'Factura recibida del proveedor', true, true, 1),
+('REM', 'Remito', 'Remito de ingreso de mercadería', true, true, 1),
+('AJU', 'Ajuste Inventario', 'Ajuste por diferencias de stock', true, true, 2),
+('CON', 'Consumo Interno', 'Salida por consumo interno', true, true, 2);
 
--- OUT desde Minibar (5)
-INSERT INTO "MovimientoInventario"
-("docId_compInv","id_prod","id_dep","tipoMovId_movInv","cantidad_movInv","costoUnitario_movInv","uom_movInv","nota_movInv")
-SELECT
-  (SELECT "docId_compInv" FROM "ComprobanteInventario"
-   WHERE "docType_compInv"='TRANSFERENCIA' AND "fecha_compInv"='2025-09-09 11:15:00'
-         AND "observacion_compInv"='Reposición Kiosco desde Minibar' LIMIT 1),
-  (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Shampoo Hotelero 30ml' LIMIT 1),
-  (SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Minibar Piso 1' LIMIT 1),
-  (SELECT "TipoMovimientoId" FROM "TipoMovimiento" WHERE "Dominio"='TRANSFERENCIA' AND "Direccion"='OUT' LIMIT 1),
-  5::numeric, CAST(NULL AS numeric), 'UN', 'Salida a Kiosco'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "MovimientoInventario" mi
-  WHERE mi."docId_compInv" = (SELECT "docId_compInv" FROM "ComprobanteInventario"
-                              WHERE "docType_compInv"='TRANSFERENCIA' AND "fecha_compInv"='2025-09-09 11:15:00'
-                                    AND "observacion_compInv"='Reposición Kiosco desde Minibar' LIMIT 1)
-    AND mi."id_dep"  = (SELECT "id_dep" FROM "Deposito" WHERE "nombre_dep"='Minibar Piso 1' LIMIT 1)
-    AND mi."id_prod" = (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Shampoo Hotelero 30ml' LIMIT 1)
-);
+-- ------------------------
+-- Comprobante
+-- ------------------------
+INSERT INTO "Comprobante" 
+("id_tipoComp", "fecha", "estado", "id_prov", "id_dep", "id_fp", "observacion")
+VALUES
+(1, NOW(), 'BORRADOR', 1, NULL, 2, 'Orden inicial de prueba'),
+(2, NOW(), 'POSTED', 1, 1, 2, 'Factura de compra registrada'),
+(5, NOW(), 'POSTED', NULL, 2, NULL, 'Consumo en el bar');
 
--- IN en Kiosco (5)
-INSERT INTO "MovimientoInventario"
-("docId_compInv","id_prod","id_dep","tipoMovId_movInv","cantidad_movInv","costoUnitario_movInv","uom_movInv","nota_movInv")
-SELECT
-  (SELECT "docId_compInv" FROM "ComprobanteInventario"
-   WHERE "docType_compInv"='TRANSFERENCIA' AND "fecha_compInv"='2025-09-09 11:15:00'
-         AND "observacion_compInv"='Reposición Kiosco desde Minibar' LIMIT 1),
-  (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Shampoo Hotelero 30ml' LIMIT 1),
-  (SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Kiosco Lobby' LIMIT 1),
-  (SELECT "TipoMovimientoId" FROM "TipoMovimiento" WHERE "Dominio"='TRANSFERENCIA' AND "Direccion"='IN' LIMIT 1),
-  5::numeric, CAST(NULL AS numeric), 'UN', 'Ingreso desde Minibar'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "MovimientoInventario" mi
-  WHERE mi."docId_compInv" = (SELECT "docId_compInv" FROM "ComprobanteInventario"
-                              WHERE "docType_compInv"='TRANSFERENCIA' AND "fecha_compInv"='2025-09-09 11:15:00'
-                                    AND "observacion_compInv"='Reposición Kiosco desde Minibar' LIMIT 1)
-    AND mi."id_dep"  = (SELECT "id_dep" FROM "Deposito" WHERE "nombre_dep"='Kiosco Lobby' LIMIT 1)
-    AND mi."id_prod" = (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Shampoo Hotelero 30ml' LIMIT 1)
-);
-
-----------------------------------------------------------------
--- D) CONTEO (–) Minibar (1 línea)
-----------------------------------------------------------------
--- Cabecera
-INSERT INTO "ComprobanteInventario"
-("docType_compInv","fecha_compInv","estado_compInv","fromDepId_compInv","toDepId_compInv","observacion_compInv")
-SELECT 'CONTEO','2025-09-09 12:00:00','POSTED',NULL,NULL,'Conteo Minibar Piso 1'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "ComprobanteInventario"
-  WHERE "docType_compInv"='CONTEO'
-    AND "fecha_compInv"='2025-09-09 12:00:00'
-    AND "observacion_compInv"='Conteo Minibar Piso 1'
-);
-
--- Faltante snacks -2
-INSERT INTO "MovimientoInventario"
-("docId_compInv","id_prod","id_dep","tipoMovId_movInv","cantidad_movInv","costoUnitario_movInv","uom_movInv","nota_movInv")
-SELECT
-  (SELECT "docId_compInv" FROM "ComprobanteInventario"
-   WHERE "docType_compInv"='CONTEO' AND "fecha_compInv"='2025-09-09 12:00:00'
-         AND "observacion_compInv"='Conteo Minibar Piso 1' LIMIT 1),
-  (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Snack Mix 50g' LIMIT 1),
-  (SELECT "id_dep"  FROM "Deposito" WHERE "nombre_dep"='Minibar Piso 1' LIMIT 1),
-  (SELECT "TipoMovimientoId" FROM "TipoMovimiento" WHERE "Dominio"='CONTEO' AND "Direccion"='OUT' LIMIT 1),
-  2::numeric, CAST(NULL AS numeric), 'UN', 'Faltante snacks -2'
-WHERE NOT EXISTS (
-  SELECT 1 FROM "MovimientoInventario" mi
-  WHERE mi."docId_compInv" = (SELECT "docId_compInv" FROM "ComprobanteInventario"
-                              WHERE "docType_compInv"='CONTEO' AND "fecha_compInv"='2025-09-09 12:00:00'
-                                    AND "observacion_compInv"='Conteo Minibar Piso 1' LIMIT 1)
-    AND mi."id_prod" = (SELECT "id_prod" FROM "Producto" WHERE "nombre_prod"='Snack Mix 50g' LIMIT 1)
-    AND mi."nota_movInv" = 'Faltante snacks -2'
-);
-
-COMMIT;
+-- ------------------------
+-- DetalleComprobante
+-- ------------------------
+INSERT INTO "DetalleComprobante" 
+("id_comp", "id_prodDep", "cantidad", "precio")
+VALUES
+(1, 1, 50, 120.00),  
+(2, 1, 50, 125.00),   
+(2, 2, 20, 300.00),  
+(3, 1, 5, 0.00);     

@@ -88,12 +88,12 @@ async function validarStockOrigen(depId, items) {
 /** Registrar ENTRADA (AJUSTE/COMPRA) POSTED
  * payload: { depId, items:[{prodId, qty, costo?}], dominio='AJUSTE', nota? }
  */
-async function registrarEntrada({ depId, items, dominio = 'AJUSTE', nota = 'Entrada manual' }) {
+async function registrarEntrada({ depId, items, dominio = 'ENTRADA', nota = 'Entrada manual' }) {
   const tipoMovId = await getTipoMovId({ dominio, direccion: 'IN' });
 
   const doc = await prisma.comprobanteInventario.create({
     data: {
-      docType_compInv: dominio === 'COMPRA' ? 'COMPRA' : 'AJUSTE',
+      docType_compInv: dominio === 'COMPRA' ? 'COMPRA' : dominio,
       fecha_compInv: new Date(),
       estado_compInv: 'POSTED',
       fromDepId_compInv: null,
@@ -118,6 +118,7 @@ async function registrarEntrada({ depId, items, dominio = 'AJUSTE', nota = 'Entr
   }
   return doc;
 }
+
 
 /** Registrar TRANSFERENCIA (OUT en origen + IN en destino) POSTED
  * payload: { fromDepId, toDepId, items:[{prodId, qty}], nota? }
@@ -175,9 +176,53 @@ async function registrarTransferencia({ fromDepId, toDepId, items, nota = 'Trans
   return { ok: true, doc };
 }
 
+/** Registrar SALIDA (consumo/venta/ajuste) POSTED
+ * payload: { depId, items:[{prodId, qty}], dominio='SALIDA', nota? }
+ */
+async function registrarSalida({ depId, items, dominio = 'SALIDA', nota = 'Salida manual' }) {
+  // Validar stock disponible
+  const check = await validarStockOrigen(Number(depId), items);
+  if (!check.ok) {
+    // devolvemos la lista de faltantes
+    return { ok: false, faltantes: check.faltantes };
+  }
+
+  const tipoMovId = await getTipoMovId({ dominio, direccion: 'OUT' });
+
+  const doc = await prisma.comprobanteInventario.create({
+    data: {
+      docType_compInv: dominio,
+      fecha_compInv: new Date(),
+      estado_compInv: 'POSTED',
+      fromDepId_compInv: Number(depId),
+      toDepId_compInv: null,
+      observacion_compInv: nota
+    }
+  });
+
+  for (const it of items) {
+    await prisma.movimientoInventario.create({
+      data: {
+        docId_compInv: doc.docId_compInv,
+        id_prod: Number(it.prodId),
+        id_dep: Number(depId),
+        tipoMovId_movInv: tipoMovId,
+        cantidad_movInv: Number(it.qty),
+        uom_movInv: 'UN',
+        nota_movInv: nota
+      }
+    });
+  }
+
+  return { ok: true, doc };
+}
+
+
+
 module.exports = {
   getTablero,
   registrarEntrada,
   registrarTransferencia,
-  validarStockOrigen
+  validarStockOrigen,
+  registrarSalida
 };

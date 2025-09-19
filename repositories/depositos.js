@@ -30,39 +30,68 @@ async function getDeposito(depId) {
 async function getStockGrid(depId) {
   depId = Number(depId);
 
-  // Productos parametrizados en el depósito
+  // Traemos los productos parametrizados en el depósito
   const prods = await prisma.productoDeposito.findMany({
     where: { id_dep: depId },
-    include: { Producto: { select: { id_prod: true, nombre_prod: true, unidad_prod: true, stockeable_prod: true } } },
+    include: {
+      Producto: { 
+        select: { id_prod: true, nombre_prod: true, stockeable_prod: true }
+      }
+    },
     orderBy: [{ Producto: { nombre_prod: 'asc' } }]
   });
 
-  // Movimientos POSTED
-  const movs = await prisma.movimientoInventario.findMany({
-    where: { id_dep: depId, Comprobante: { estado_compInv: 'POSTED' } },
-    select: {
-      id_prod: true,
-      cantidad_movInv: true,
-      TipoMovimiento: { select: { Direccion: true } }
+  // Movimientos confirmados desde comprobantes (POSTED)
+const movs = await prisma.detalleComprobante.findMany({
+  where: {
+    ProductoDeposito: { id_dep: 1 },
+    Comprobante: {
+      estado: "POSTED",
+      TipoComprobante: { afectaStock: true }
     }
-  });
+  },
+  select: {
+    id_prodDep: true,
+    cantidad: true,
+    Comprobante: {
+      select: {
+        TipoComprobante: {
+          select: {
+            TipoMovimiento: {
+              select: { direccion: true }
+            }
+          }
+        }
+      }
+    }
+  }
+});
 
+
+  // Construimos stock por productoDepósito
   const stockMap = new Map();
   for (const m of movs) {
-    const sign = m.TipoMovimiento.Direccion === 'OUT' ? -1 : 1;
-    stockMap.set(m.id_prod, (stockMap.get(m.id_prod) || 0) + sign * Number(m.cantidad_movInv));
+    const dir = m.TipoComprobante.TipoMovimiento.direccion; // IN / OUT
+    const sign = dir === 'OUT' ? -1 : 1;
+    stockMap.set(
+      m.id_prodDep,
+      (stockMap.get(m.id_prodDep) || 0) + sign * Number(m.cantidad)
+    );
   }
 
+  // Resultado para la vista
   return prods.map(pd => {
     const p = pd.Producto;
-    const stock = stockMap.get(p.id_prod) || 0;
+    const stock = stockMap.get(pd.id_prodDep) || 0;
     const minimo = pd.minimo_prodDep ?? null;
-    const estado = (p.stockeable_prod && minimo != null && stock < Number(minimo)) ? 'Bajo' : 'OK';
+    const estado =
+      p.stockeable_prod && minimo != null && stock < Number(minimo)
+        ? 'Bajo'
+        : 'OK';
 
     return {
       id_prod: p.id_prod,
       nombre: p.nombre_prod,
-      uom: p.unidad_prod || 'UN',
       stock: Number(stock),
       estado
     };

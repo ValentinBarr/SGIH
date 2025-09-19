@@ -10,15 +10,15 @@ module.exports = ({ deps, depSel = '' }) => {
     content: `
     <section class="inventory-card">
       <div class="inventory-toolbar">
-        <h2 class="title is-5" style="margin:0;">Registrar entrada</h2>
+        <h2 class="title is-5" style="margin:0;">Registrar salida</h2>
         <div style="flex:1"></div>
         <a class="btn btn--subtle" href="/inventarios/depositos/${depSel}">Volver</a>
       </div>
 
       <div class="box">
-        <form id="frm-in">
+        <form id="frm-out">
           <div class="field">
-            <label class="label">Depósito origen</label>
+            <label class="label">Depósito destino</label>
             <div class="select is-fullwidth">
               <select name="depId" id="dep" required>
                 <option value="">Seleccionar…</option>
@@ -38,7 +38,7 @@ module.exports = ({ deps, depSel = '' }) => {
         </form>
       </div>
     </section>
-    <script src="/js/acciones-entrada.js" defer></script>
+    <script src="/js/acciones-salidas.js" defer></script>
     `
   });
 };
