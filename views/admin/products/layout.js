@@ -29,20 +29,20 @@ module.exports = ({ content }) => {
           <a class="sidebar__link" href="/pos"><span class="sidebar__icon"></span><span class="sidebar__label">POS</span></a>
 
           <!-- Inventarios -->
-          <div class="sidebar__group" id="inv-group">
-            <a id="inv-link" class="sidebar__link sidebar__link--parent" href="/inventarios/dashboard">
+          <div class="sidebar__group" id="inventarios-group">
+            <a id="inventarios-link" class="sidebar__link sidebar__link--parent" href="/inventarios/dashboard">
               <span class="sidebar__icon"></span><span class="sidebar__label">Inventarios</span>
             </a>
             <button
-              id="inv-toggle"
+              id="inventarios-toggle"
               class="sidebar__chevron"
               type="button"
               aria-label="Expandir Inventarios"
               aria-expanded="false"
-              aria-controls="inv-sub"
+              aria-controls="inventarios-sub"
             >▸</button>
 
-            <ul id="inv-sub" class="sidebar__submenu" hidden>
+            <ul id="inventarios-sub" class="sidebar__submenu" hidden>
               <li><a class="sidebar__sublink" href="/inventarios/articulos">Artículos</a></li>
               <li><a class="sidebar__sublink" href="/inventarios/depositos">Depósitos</a></li>
               <li><a class="sidebar__sublink" href="/inventarios/movimientos">Movimientos</a></li>
@@ -66,8 +66,8 @@ module.exports = ({ content }) => {
 
             <ul id="compras-sub" class="sidebar__submenu" hidden>
               <li><a class="sidebar__sublink" href="/compras/proveedores">Proveedores</a></li>
-              <li><a class="sidebar__sublink" href="/compras/ordenes">Órdenes de Compra </a></li>
-              <li><a class="sidebar__sublink" href="/compras/facturas">Facturas de Proveedor </a></li>
+              <li><a class="sidebar__sublink" href="/compras/ordenes">Órdenes de Compra</a></li>
+              <li><a class="sidebar__sublink" href="/compras/facturas">Facturas de Proveedor</a></li>
             </ul>
           </div>
 
