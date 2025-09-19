@@ -28,7 +28,7 @@ module.exports = ({ content }) => {
           <a class="sidebar__link" href="/habitaciones"><span class="sidebar__icon"></span><span class="sidebar__label">Habitaciones</span></a>
           <a class="sidebar__link" href="/pos"><span class="sidebar__icon"></span><span class="sidebar__label">POS</span></a>
 
-          <!-- Inventarios: link + chevron + submenu -->
+          <!-- Inventarios -->
           <div class="sidebar__group" id="inv-group">
             <a id="inv-link" class="sidebar__link sidebar__link--parent" href="/inventarios/dashboard">
               <span class="sidebar__icon"></span><span class="sidebar__label">Inventarios</span>
@@ -50,6 +50,26 @@ module.exports = ({ content }) => {
             </ul>
           </div>
 
+          <!-- Compras -->
+          <div class="sidebar__group" id="compras-group">
+            <a id="compras-link" class="sidebar__link sidebar__link--parent" href="/compras/dashboard">
+              <span class="sidebar__icon"></span><span class="sidebar__label">Compras</span>
+            </a>
+            <button
+              id="compras-toggle"
+              class="sidebar__chevron"
+              type="button"
+              aria-label="Expandir Compras"
+              aria-expanded="false"
+              aria-controls="compras-sub"
+            >▸</button>
+
+            <ul id="compras-sub" class="sidebar__submenu" hidden>
+              <li><a class="sidebar__sublink" href="/compras/proveedores">Proveedores</a></li>
+              <li><a class="sidebar__sublink" href="/compras/ordenes">Órdenes de Compra </a></li>
+              <li><a class="sidebar__sublink" href="/compras/facturas">Facturas de Proveedor </a></li>
+            </ul>
+          </div>
 
           <a class="sidebar__link" href="/clientes"><span class="sidebar__icon"></span><span class="sidebar__label">Clientes</span></a>
         </nav>

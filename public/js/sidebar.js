@@ -1,98 +1,50 @@
-//puse de ejemplo pueden cambiarle el nombre para que sea que lo usen. porque sino le ponia una rchivo no aparecia en githun
+// ---- Submenú Compras (desplegar hacia abajo)
 (() => {
-  const root = document.documentElement;
-  const toggleBtn = document.getElementById('toggleSidebar');
-  const openMobileBtn = document.getElementById('openMobile');
+  const cmpToggle = document.getElementById('compras-toggle');
+  const cmpSub    = document.getElementById('compras-sub');
+  const cmpLink   = document.getElementById('compras-link');
 
-  // ---- Restaurar estado colapsado desde localStorage
-  const saved = localStorage.getItem('sidebar:collapsed');
-  if (saved === 'true') {
-    root.classList.add('sidebar-collapsed');
-    toggleBtn && toggleBtn.setAttribute('aria-expanded', 'false');
-  }
-
-  // ---- Toggle desktop/tablet
-  toggleBtn && toggleBtn.addEventListener('click', () => {
-    const collapsed = root.classList.toggle('sidebar-collapsed');
-    localStorage.setItem('sidebar:collapsed', collapsed ? 'true' : 'false');
-    toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-  });
-
-  // ---- Mobile drawer open/close
-  const openMobile = () => root.classList.add('sidebar-open');
-  const closeMobile = () => root.classList.remove('sidebar-open');
-
-  openMobileBtn && openMobileBtn.addEventListener('click', openMobile);
-
-  document.addEventListener('click', (e) => {
-    if (!root.classList.contains('sidebar-open')) return;
-    const sidebar = document.querySelector('.sidebar');
-    const topBtn = document.getElementById('openMobile');
-    if (!sidebar.contains(e.target) && !topBtn.contains(e.target)) closeMobile();
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeMobile();
-  });
-
-  // ---- Marcar link activo según la URL actual
-  const current = window.location.pathname.replace(/\/+$/,''); // sin slash final
-  document.querySelectorAll('.sidebar__nav a').forEach(a => {
-    const href = new URL(a.href, window.location.origin).pathname.replace(/\/+$/,'');
-    if (href === current || (href !== '/' && current.startsWith(href))) {
-      a.classList.add('is-active');
-      a.setAttribute('aria-current', 'page');
-    }
-  });
-})();
-
-// ---- Submenú Inventarios (desplegar hacia abajo)
-(() => {
-  const invToggle = document.getElementById('inv-toggle');
-  const invSub    = document.getElementById('inv-sub');
-  const invLink   = document.getElementById('inv-link');
-
-  const openInv = () => {
-    if (!invSub) return;
-    invSub.hidden = false;
-    invToggle?.classList.add('open');
-    invToggle?.setAttribute('aria-expanded', 'true');
-    localStorage.setItem('submenu:inventarios', 'open');
+  const openCmp = () => {
+    if (!cmpSub) return;
+    cmpSub.hidden = false;
+    cmpToggle?.classList.add('open');
+    cmpToggle?.setAttribute('aria-expanded', 'true');
+    localStorage.setItem('submenu:compras', 'open');
   };
 
-  const closeInv = () => {
-    if (!invSub) return;
-    invSub.hidden = true;
-    invToggle?.classList.remove('open');
-    invToggle?.setAttribute('aria-expanded', 'false');
-    localStorage.setItem('submenu:inventarios', 'closed');
+  const closeCmp = () => {
+    if (!cmpSub) return;
+    cmpSub.hidden = true;
+    cmpToggle?.classList.remove('open');
+    cmpToggle?.setAttribute('aria-expanded', 'false');
+    localStorage.setItem('submenu:compras', 'closed');
   };
 
-  // Mantener abierto al entrar a /inventarios/* o por preferencia guardada
-  const saved = localStorage.getItem('submenu:inventarios');
-  if (location.pathname.startsWith('/inventarios') || saved === 'open') openInv();
+  // Mantener abierto al entrar a /compras/* o por preferencia guardada
+  const saved = localStorage.getItem('submenu:compras');
+  if (location.pathname.startsWith('/compras') || saved === 'open') openCmp();
 
   // Chevron: solo expandir/colapsar (sin navegar)
-  invToggle?.addEventListener('click', (e) => {
+  cmpToggle?.addEventListener('click', (e) => {
     e.preventDefault();
-    invSub.hidden ? openInv() : closeInv();
+    cmpSub.hidden ? openCmp() : closeCmp();
   });
 
-  // Click en el texto "Inventarios": navegar y mantener abierto
-  invLink?.addEventListener('click', () => openInv());
+  // Click en el texto "Compras": navegar y mantener abierto
+  cmpLink?.addEventListener('click', () => openCmp());
 
   // Marcar sub-link activo
-  const markActiveInv = () => {
-    if (!invSub) return;
+  const markActiveCmp = () => {
+    if (!cmpSub) return;
     const path = window.location.pathname.replace(/\/$/, '');
-    invSub.querySelectorAll('a').forEach(a => {
+    cmpSub.querySelectorAll('a').forEach(a => {
       const href = new URL(a.href, location.origin).pathname.replace(/\/$/, '');
       a.classList.toggle(
         'is-active',
-        href === path || (href === '/inventarios/dashboard' && path === '/inventarios')
+        href === path || (href === '/compras/dashboard' && path === '/compras')
       );
     });
   };
-  markActiveInv();
-  window.addEventListener('popstate', markActiveInv);
+  markActiveCmp();
+  window.addEventListener('popstate', markActiveCmp);
 })();
