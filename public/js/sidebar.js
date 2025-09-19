@@ -1,50 +1,52 @@
-// ---- Submenú Compras (desplegar hacia abajo)
+// js/sidebar.js
 (() => {
-  const cmpToggle = document.getElementById('compras-toggle');
-  const cmpSub    = document.getElementById('compras-sub');
-  const cmpLink   = document.getElementById('compras-link');
+  function initSubmenu(prefix) {
+    const toggle = document.getElementById(`${prefix}-toggle`);
+    const sub = document.getElementById(`${prefix}-sub`);
+    const link = document.getElementById(`${prefix}-link`);
 
-  const openCmp = () => {
-    if (!cmpSub) return;
-    cmpSub.hidden = false;
-    cmpToggle?.classList.add('open');
-    cmpToggle?.setAttribute('aria-expanded', 'true');
-    localStorage.setItem('submenu:compras', 'open');
-  };
+    if (!toggle || !sub) return;
 
-  const closeCmp = () => {
-    if (!cmpSub) return;
-    cmpSub.hidden = true;
-    cmpToggle?.classList.remove('open');
-    cmpToggle?.setAttribute('aria-expanded', 'false');
-    localStorage.setItem('submenu:compras', 'closed');
-  };
+    const open = () => {
+      sub.hidden = false;
+      toggle.classList.add('open');
+      toggle.setAttribute('aria-expanded', 'true');
+      localStorage.setItem(`submenu:${prefix}`, 'open');
+    };
 
-  // Mantener abierto al entrar a /compras/* o por preferencia guardada
-  const saved = localStorage.getItem('submenu:compras');
-  if (location.pathname.startsWith('/compras') || saved === 'open') openCmp();
+    const close = () => {
+      sub.hidden = true;
+      toggle.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+      localStorage.setItem(`submenu:${prefix}`, 'closed');
+    };
 
-  // Chevron: solo expandir/colapsar (sin navegar)
-  cmpToggle?.addEventListener('click', (e) => {
-    e.preventDefault();
-    cmpSub.hidden ? openCmp() : closeCmp();
-  });
+    // mantener abierto si corresponde
+    const saved = localStorage.getItem(`submenu:${prefix}`);
+    if (location.pathname.startsWith(`/${prefix}`) || saved === 'open') open();
 
-  // Click en el texto "Compras": navegar y mantener abierto
-  cmpLink?.addEventListener('click', () => openCmp());
-
-  // Marcar sub-link activo
-  const markActiveCmp = () => {
-    if (!cmpSub) return;
-    const path = window.location.pathname.replace(/\/$/, '');
-    cmpSub.querySelectorAll('a').forEach(a => {
-      const href = new URL(a.href, location.origin).pathname.replace(/\/$/, '');
-      a.classList.toggle(
-        'is-active',
-        href === path || (href === '/compras/dashboard' && path === '/compras')
-      );
+    toggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      sub.hidden ? open() : close();
     });
-  };
-  markActiveCmp();
-  window.addEventListener('popstate', markActiveCmp);
+
+    link?.addEventListener('click', () => open());
+
+    // marcar activo
+    const markActive = () => {
+      const path = window.location.pathname.replace(/\/$/, '');
+      sub.querySelectorAll('a').forEach(a => {
+        const href = new URL(a.href, location.origin).pathname.replace(/\/$/, '');
+        a.classList.toggle(
+          'is-active',
+          href === path || (href === `/${prefix}/dashboard` && path === `/${prefix}`)
+        );
+      });
+    };
+    markActive();
+    window.addEventListener('popstate', markActive);
+  }
+
+  // inicializar todos los submenús que existan
+  ['inventarios', 'compras'].forEach(initSubmenu);
 })();
