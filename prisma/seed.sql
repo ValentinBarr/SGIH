@@ -26,11 +26,11 @@ VALUES
 -- Producto
 -- ------------------------
 INSERT INTO "Producto" 
-("nombre_prod", "unidad_prod", "tipo_prod", "stockeable_prod", "vendible_prod", "descuentaStockVenta_prod", "stockMinimoGlobal_prod", "activo_prod")
+("nombre_prod", "tipo_prod", "stockeable_prod", "vendible_prod", "descuentaStockVenta_prod", "stockMinimoGlobal_prod", "activo_prod")
 VALUES
-('Coca Cola 500ml', 'UN', 'VENDIBLE', true, true, true, 20, true),
-('Detergente 1L', 'LT', 'INSUMO', true, false, false, 10, true),
-('Shampoo Sachet', 'UN', 'AMENITY', true, false, false, 50, true);
+('Coca Cola 500ml', 'VENDIBLE', true, true, true, 20, true),
+('Detergente 1L', 'INSUMO', true, false, false, 10, true),
+('Shampoo Sachet', 'AMENITY', true, false, false, 50, true);
 
 -- ------------------------
 -- ProductoDeposito
