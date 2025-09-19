@@ -1,5 +1,3 @@
-//Ejemplo aqui va el layout principal
-// views/layout.js
 module.exports = ({ content }) => {
   return `
   <!DOCTYPE html>
@@ -23,15 +21,37 @@ module.exports = ({ content }) => {
         </div>
 
         <nav id="sidebarNav" class="sidebar__nav">
-          <a class="sidebar__link" href="/"><span class="sidebar__icon">🏠</span><span class="sidebar__label">Inicio</span></a>
+          <a class="sidebar__link" href="/"><span class="sidebar__icon"></span><span class="sidebar__label">Inicio</span></a>
+          <a class="sidebar__link" href="/reservas"><span class="sidebar__icon"></span><span class="sidebar__label">Reservas</span></a>
+          <a class="sidebar__link" href="/check-in"><span class="sidebar__icon"></span><span class="sidebar__label">Check In</span></a>
+          <a class="sidebar__link" href="/check-out"><span class="sidebar__icon"></span><span class="sidebar__label">Check Out</span></a>
+          <a class="sidebar__link" href="/habitaciones"><span class="sidebar__icon"></span><span class="sidebar__label">Habitaciones</span></a>
+          <a class="sidebar__link" href="/pos"><span class="sidebar__icon"></span><span class="sidebar__label">POS</span></a>
 
-          <a class="sidebar__link" href="/reservas"><span class="sidebar__icon">📅</span><span class="sidebar__label">Reservas</span></a>
-          <a class="sidebar__link" href="/check-in"><span class="sidebar__icon">🟢</span><span class="sidebar__label">Check In</span></a>
-          <a class="sidebar__link" href="/check-out"><span class="sidebar__icon">🔴</span><span class="sidebar__label">Check Out</span></a>
-          <a class="sidebar__link" href="/habitaciones"><span class="sidebar__icon">🛏️</span><span class="sidebar__label">Habitaciones</span></a>
-          <a class="sidebar__link" href="/pos"><span class="sidebar__icon">🧾</span><span class="sidebar__label">POS</span></a>
-          <a class="sidebar__link" href="/inventarios/dashboard"><span class="sidebar__icon">📦</span><span class="sidebar__label">Inventarios</span></a>
-          <a class="sidebar__link" href="/clientes"><span class="sidebar__icon">👥</span><span class="sidebar__label">Clientes</span></a>
+          <!-- Inventarios: link + chevron + submenu -->
+          <div class="sidebar__group" id="inv-group">
+            <a id="inv-link" class="sidebar__link sidebar__link--parent" href="/inventarios/dashboard">
+              <span class="sidebar__icon"></span><span class="sidebar__label">Inventarios</span>
+            </a>
+            <button
+              id="inv-toggle"
+              class="sidebar__chevron"
+              type="button"
+              aria-label="Expandir Inventarios"
+              aria-expanded="false"
+              aria-controls="inv-sub"
+            >▸</button>
+
+            <ul id="inv-sub" class="sidebar__submenu" hidden>
+              <li><a class="sidebar__sublink" href="/inventarios/articulos">Artículos</a></li>
+              <li><a class="sidebar__sublink" href="/inventarios/depositos">Depósitos</a></li>
+              <li><a class="sidebar__sublink" href="/inventarios/movimientos">Movimientos</a></li>
+              <li><a class="sidebar__sublink" href="/inventarios/stock">Stock</a></li>
+            </ul>
+          </div>
+
+
+          <a class="sidebar__link" href="/clientes"><span class="sidebar__icon"></span><span class="sidebar__label">Clientes</span></a>
         </nav>
       </aside>
 
