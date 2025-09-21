@@ -1,10 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-
+// ----------------------------
+// Prisma config
+// ----------------------------
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -60,6 +56,7 @@ model Deposito {
   TipoDeposito      TipoDeposito      @relation(fields: [id_tipoDep], references: [id_tipoDep])
   ProductoDepositos ProductoDeposito[]
   Comprobantes      Comprobante[]
+  Movimientos       Movimiento[]
 }
 
 // ----------------------------
@@ -80,6 +77,7 @@ model ProductoDeposito {
   Deposito Deposito @relation(fields: [id_dep],  references: [id_dep])
 
   DetallesComprobantes DetalleComprobante[]
+  DetallesMovimientos DetalleMovimiento[]
 
   @@index([id_prod])
   @@index([id_dep])
@@ -121,7 +119,45 @@ model TipoMovimiento {
   direccion  String  @db.Char(3)       // IN | OUT
   activo     Boolean @default(true)
 
-  TiposComprobantes TipoComprobante[]
+  Movimientos Movimiento[]
+}
+
+// ----------------------------
+// Movimiento (Encabezado)
+// ----------------------------
+model Movimiento {
+  id_mov       Int      @id @default(autoincrement())
+  id_tipoMov   Int
+  id_tipoComp  Int?     // referencia opcional al tipo de comprobante
+  fecha_mov    DateTime @default(now())
+  id_dep       Int      // depósito afectado
+  observacion  String?  @db.VarChar(250)
+
+  TipoMovimiento  TipoMovimiento   @relation(fields: [id_tipoMov], references: [id_tipoMov])
+  TipoComprobante TipoComprobante? @relation(fields: [id_tipoComp], references: [id_tipoComp])
+  Deposito        Deposito         @relation(fields: [id_dep], references: [id_dep])
+
+  Detalles DetalleMovimiento[]
+
+  @@index([id_tipoMov])
+  @@index([id_tipoComp])
+  @@index([id_dep])
+}
+
+// ----------------------------
+// DetalleMovimiento
+// ----------------------------
+model DetalleMovimiento {
+  id_detMov   Int     @id @default(autoincrement())
+  id_mov      Int
+  id_prodDep  Int
+  cantidad    Decimal @db.Decimal(18, 3)
+
+  Movimiento       Movimiento       @relation(fields: [id_mov], references: [id_mov])
+  ProductoDeposito ProductoDeposito @relation(fields: [id_prodDep], references: [id_prodDep])
+
+  @@index([id_mov])
+  @@index([id_prodDep])
 }
 
 // ----------------------------
@@ -135,12 +171,8 @@ model TipoComprobante {
   afectaStock Boolean @default(false)
   activo      Boolean @default(true)
 
-  id_tipoMov Int
-  TipoMovimiento TipoMovimiento @relation(fields: [id_tipoMov], references: [id_tipoMov])
-
   Comprobantes Comprobante[]
-
-  @@index([id_tipoMov])
+  Movimientos  Movimiento[]
 }
 
 // ----------------------------
@@ -152,9 +184,16 @@ model Comprobante {
   fecha         DateTime
   estado        String   @db.VarChar(20)   // BORRADOR, POSTED, PAGADO
   id_prov       Int?
-  id_dep        Int?     // depósito afectado si aplica
+  id_dep        Int?     // depósito relacionado si aplica
   id_fp         Int?     // forma de pago si aplica
   observacion   String?  @db.VarChar(250)
+
+  // Campos fiscales y de control
+  letra_comp     String   @db.Char(1)      // A, B, C, M
+  sucursal_comp  String   @db.Char(4)      // 0001
+  numero_comp    String   @db.Char(8)      // 00000001
+  total_comp     Decimal  @db.Decimal(18,2)
+  saldo_comp     Decimal  @db.Decimal(18,2)
 
   TipoComprobante TipoComprobante @relation(fields: [id_tipoComp], references: [id_tipoComp])
   Proveedor       Proveedor?      @relation(fields: [id_prov], references: [id_prov])
@@ -185,6 +224,3 @@ model DetalleComprobante {
   @@index([id_comp])
   @@index([id_prodDep])
 }
-
-
-
