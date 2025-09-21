@@ -8,6 +8,7 @@ const movimientosRouter = require('./routes/admin/inventario/movimientos.js');
 const accionesRouter = require('./routes/admin/inventario/acciones.js');
 const depositoRouter = require('./routes/admin/inventario/deposito.js');
 const stockRouter = require('./routes/admin/inventario/stock.js');
+const proveedorRouter = require('./routes/admin/compras/proveedores.js');
 
 const posRouter = require('./routes/admin/pos.js');
 
@@ -27,6 +28,8 @@ app.use(articulosdRouter);
 app.use(posRouter);
 app.use(depositoRouter);
 app.use(accionesRouter);
+app.use(proveedorRouter);
+
 
 
 app.listen(3000, ()=> {

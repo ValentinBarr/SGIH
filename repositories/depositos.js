@@ -41,37 +41,31 @@ async function getStockGrid(depId) {
     orderBy: [{ Producto: { nombre_prod: 'asc' } }]
   });
 
-  // Movimientos confirmados desde comprobantes (POSTED)
-const movs = await prisma.detalleComprobante.findMany({
-  where: {
-    ProductoDeposito: { id_dep: 1 },
-    Comprobante: {
-      estado: "POSTED",
-      TipoComprobante: { afectaStock: true }
-    }
-  },
-  select: {
-    id_prodDep: true,
-    cantidad: true,
-    Comprobante: {
-      select: {
-        TipoComprobante: {
-          select: {
-            TipoMovimiento: {
-              select: { direccion: true }
-            }
+  // Movimientos confirmados desde comprobantes (POSTED y que afectan stock)
+  const movs = await prisma.detalleComprobante.findMany({
+    where: {
+      ProductoDeposito: { id_dep: depId },   // 👈 antes estaba fijo en 1
+      Comprobante: {
+        estado: "POSTED",
+        TipoComprobante: { afectaStock: true }
+      }
+    },
+    include: {
+      Comprobante: {
+        include: {
+          TipoComprobante: {
+            include: { TipoMovimiento: true }
           }
         }
       }
     }
-  }
-});
-
+  });
 
   // Construimos stock por productoDepósito
   const stockMap = new Map();
   for (const m of movs) {
-    const dir = m.TipoComprobante.TipoMovimiento.direccion; // IN / OUT
+    const dir = m.Comprobante?.TipoComprobante?.TipoMovimiento?.direccion;
+    if (!dir) continue;
     const sign = dir === 'OUT' ? -1 : 1;
     stockMap.set(
       m.id_prodDep,
@@ -90,12 +84,45 @@ const movs = await prisma.detalleComprobante.findMany({
         : 'OK';
 
     return {
+      id_prodDep: pd.id_prodDep,
       id_prod: p.id_prod,
       nombre: p.nombre_prod,
       stock: Number(stock),
       estado
     };
   });
+
 }
 
-module.exports = { getDepositos, getDeposito, getStockGrid };
+// Movimientos de consumo interno por depósito
+async function getConsumosInternos(depId, limit = 10) {
+  return prisma.comprobante.findMany({
+    where: {
+      id_dep: Number(depId),
+      estado: "POSTED",
+      TipoComprobante: { codigo: "CON" } // 👈 solo consumos internos
+    },
+    include: {
+      TipoComprobante: true,
+      Detalles: {
+        include: {
+          ProductoDeposito: {
+            include: { Producto: { select: { nombre_prod: true } } }
+          }
+        }
+      }
+    },
+    orderBy: { fecha: 'desc' },
+    take: limit
+  });
+}
+
+async function getDepositosActivos() {
+  return prisma.deposito.findMany({
+    where: { activo_dep: true },
+    orderBy: { nombre_dep: 'asc' }
+  });
+}
+
+
+module.exports = { getDepositos, getDeposito, getStockGrid, getConsumosInternos, getDepositosActivos };
