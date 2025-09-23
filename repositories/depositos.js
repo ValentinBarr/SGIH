@@ -1,8 +1,9 @@
-// repositories/depositos.js
 const { PrismaClient } = require('../generated/prisma');
 const prisma = new PrismaClient();
 
+// =============================
 // Obtener todos los depósitos con su tipo
+// =============================
 async function getDepositos() {
   return prisma.deposito.findMany({
     include: { TipoDeposito: { select: { nombre_tipoDep: true } } },
@@ -10,7 +11,9 @@ async function getDepositos() {
   });
 }
 
+// =============================
 // Info básica de un depósito
+// =============================
 async function getDeposito(depId) {
   return prisma.deposito.findUnique({
     where: { id_dep: Number(depId) },
@@ -26,11 +29,17 @@ async function getDeposito(depId) {
   });
 }
 
-// Stock actual por producto en un depósito
-async function getStockGrid(depId) {
+// =============================
+// Stock actual por producto en un depósito (con paginación)
+// =============================
+async function getStockGrid(depId, page = 1, limit = 10) {
   depId = Number(depId);
+  const offset = (page - 1) * limit;
 
-  // Traemos los productos parametrizados en el depósito
+  const total = await prisma.productoDeposito.count({
+    where: { id_dep: depId }
+  });
+
   const prods = await prisma.productoDeposito.findMany({
     where: { id_dep: depId },
     include: {
@@ -38,33 +47,19 @@ async function getStockGrid(depId) {
         select: { id_prod: true, nombre_prod: true, stockeable_prod: true }
       }
     },
-    orderBy: [{ Producto: { nombre_prod: 'asc' } }]
+    orderBy: [{ Producto: { nombre_prod: 'asc' } }],
+    skip: offset,
+    take: limit
   });
 
-  // Movimientos confirmados desde comprobantes (POSTED y que afectan stock)
-  const movs = await prisma.detalleComprobante.findMany({
-    where: {
-      ProductoDeposito: { id_dep: depId },   // 👈 antes estaba fijo en 1
-      Comprobante: {
-        estado: "POSTED",
-        TipoComprobante: { afectaStock: true }
-      }
-    },
-    include: {
-      Comprobante: {
-        include: {
-          TipoComprobante: {
-            include: { TipoMovimiento: true }
-          }
-        }
-      }
-    }
+  const movs = await prisma.detalleMovimiento.findMany({
+    where: { ProductoDeposito: { id_dep: depId } },
+    include: { Movimiento: { include: { TipoMovimiento: true } } }
   });
 
-  // Construimos stock por productoDepósito
   const stockMap = new Map();
   for (const m of movs) {
-    const dir = m.Comprobante?.TipoComprobante?.TipoMovimiento?.direccion;
+    const dir = m.Movimiento?.TipoMovimiento?.direccion;
     if (!dir) continue;
     const sign = dir === 'OUT' ? -1 : 1;
     stockMap.set(
@@ -73,8 +68,7 @@ async function getStockGrid(depId) {
     );
   }
 
-  // Resultado para la vista
-  return prods.map(pd => {
+  const grid = prods.map(pd => {
     const p = pd.Producto;
     const stock = stockMap.get(pd.id_prodDep) || 0;
     const minimo = pd.minimo_prodDep ?? null;
@@ -92,17 +86,24 @@ async function getStockGrid(depId) {
     };
   });
 
+  return {
+    grid,
+    total,
+    page,
+    pages: Math.ceil(total / limit)
+  };
 }
 
-// Movimientos de consumo interno por depósito
-async function getConsumosInternos(depId, limit = 10) {
-  return prisma.comprobante.findMany({
+// =============================
+// Movimientos por depósito (todos: entradas y salidas)
+// =============================
+async function getMovimientos(depId, limit = 10) {
+  return prisma.movimiento.findMany({
     where: {
-      id_dep: Number(depId),
-      estado: "POSTED",
-      TipoComprobante: { codigo: "CON" } // 👈 solo consumos internos
+      id_dep: Number(depId)
     },
     include: {
+      TipoMovimiento: true,
       TipoComprobante: true,
       Detalles: {
         include: {
@@ -112,11 +113,14 @@ async function getConsumosInternos(depId, limit = 10) {
         }
       }
     },
-    orderBy: { fecha: 'desc' },
+    orderBy: { fecha_mov: 'desc' },
     take: limit
   });
 }
 
+// =============================
+// Obtener depósitos activos
+// =============================
 async function getDepositosActivos() {
   return prisma.deposito.findMany({
     where: { activo_dep: true },
@@ -125,4 +129,24 @@ async function getDepositosActivos() {
 }
 
 
-module.exports = { getDepositos, getDeposito, getStockGrid, getConsumosInternos, getDepositosActivos };
+// =============================
+// Tipos de Comprobantes
+// =============================
+async function getTiposComprobantes() {
+  return prisma.tipoComprobante.findMany({
+    where: { activo: true },
+    orderBy: { nombre: 'asc' }
+  });
+}
+
+
+
+
+module.exports = { 
+  getDepositos, 
+  getDeposito, 
+  getStockGrid, 
+  getMovimientos,   // 👈 ahora trae todos los movimientos
+  getDepositosActivos,
+  getTiposComprobantes
+};

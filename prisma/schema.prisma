@@ -26,6 +26,7 @@ model Producto {
   fechaAlta_prod           DateTime  @default(now())
 
   ProductoDepositos ProductoDeposito[]
+  DetallesComprobantes DetalleComprobante[]
 }
 
 // ----------------------------
@@ -76,7 +77,6 @@ model ProductoDeposito {
   Producto Producto @relation(fields: [id_prod], references: [id_prod])
   Deposito Deposito @relation(fields: [id_dep],  references: [id_dep])
 
-  DetallesComprobantes DetalleComprobante[]
   DetallesMovimientos DetalleMovimiento[]
 
   @@index([id_prod])
@@ -195,6 +195,11 @@ model Comprobante {
   total_comp     Decimal  @db.Decimal(18,2)
   saldo_comp     Decimal  @db.Decimal(18,2)
 
+  // 🔗 Relación opcional a otro comprobante (ej: factura ↔ orden de compra/remito)
+  id_compRef    Int?
+  ComprobanteRef Comprobante? @relation("ComprobanteReferencia", fields: [id_compRef], references: [id_comp])
+  ComprobantesAsociados Comprobante[] @relation("ComprobanteReferencia")
+
   TipoComprobante TipoComprobante @relation(fields: [id_tipoComp], references: [id_tipoComp])
   Proveedor       Proveedor?      @relation(fields: [id_prov], references: [id_prov])
   Deposito        Deposito?       @relation(fields: [id_dep], references: [id_dep])
@@ -206,6 +211,7 @@ model Comprobante {
   @@index([id_prov])
   @@index([id_dep])
   @@index([id_fp])
+  @@index([id_compRef])
 }
 
 // ----------------------------
@@ -214,13 +220,13 @@ model Comprobante {
 model DetalleComprobante {
   id_det     Int     @id @default(autoincrement())
   id_comp    Int
-  id_prodDep Int
+  id_prod    Int
   cantidad   Decimal @db.Decimal(18, 3)
   precio     Decimal? @db.Decimal(18, 2)
 
-  Comprobante     Comprobante     @relation(fields: [id_comp], references: [id_comp])
-  ProductoDeposito ProductoDeposito @relation(fields: [id_prodDep], references: [id_prodDep])
+  Comprobante Comprobante @relation(fields: [id_comp], references: [id_comp])
+  Producto    Producto    @relation(fields: [id_prod], references: [id_prod])
 
   @@index([id_comp])
-  @@index([id_prodDep])
+  @@index([id_prod])
 }
