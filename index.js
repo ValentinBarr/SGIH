@@ -9,6 +9,9 @@ const depositoRouter = require('./routes/admin/inventario/deposito.js');
 const stockRouter = require('./routes/admin/inventario/stock.js');
 const proveedorRouter = require('./routes/admin/compras/proveedores.js');
 const remitosRouter = require('./routes/admin/compras/remitos');
+const ordenesRouter = require('./routes/admin/compras/ordenes');
+const facturasRouter = require('./routes/admin/compras/facturas');
+
 const posRouter = require('./routes/admin/pos.js');
 
 const inicioRouter = require('./routes/inicio.js');
@@ -42,6 +45,9 @@ app.use(depositoRouter);
 app.use(accionesRouter);
 app.use(proveedorRouter);
 app.use(remitosRouter);
+app.use(ordenesRouter);
+app.use(facturasRouter);
+
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

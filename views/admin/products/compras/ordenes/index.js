@@ -1,40 +1,39 @@
-// views/admin/compras/remitos/index.js
 const layout = require('../../layout');
 
 const getEstadoColor = (estado) => {
   const colores = {
     'BORRADOR': 'warning',
-    'PENDIENTE': 'info', 
-    'RECIBIDO': 'success',
-    'ANULADO': 'danger'
+    'EN_PROCESO': 'info',
+    'APROBADA': 'success',
+    'ANULADA': 'danger'
   };
   return colores[estado] || 'light';
 };
 
 const getTransicionesValidas = (estadoActual) => {
   const transiciones = {
-    'BORRADOR': ['PENDIENTE', 'ANULADO'],
-    'PENDIENTE': ['RECIBIDO', 'ANULADO'], 
-    'RECIBIDO': ['ANULADO'],
-    'ANULADO': []
+    'BORRADOR': ['EN_PROCESO', 'ANULADA'],
+    'EN_PROCESO': ['APROBADA', 'ANULADA'],
+    'APROBADA': ['ANULADA'],
+    'ANULADA': []
   };
   return transiciones[estadoActual] || [];
 };
 
-module.exports = ({ remitos, proveedores, estados = [], filters, basePath }) => {
+module.exports = ({ ordenes, proveedores, estados = [], filters, basePath }) => {
   return layout({
     content: `
       <section class="inventory-card">
         <div class="level">
           <div class="level-left">
-            <h1 class="title">Remitos de Compra</h1>
+            <h1 class="title">Órdenes de Compra</h1>
           </div>
           <div class="level-right">
             <a href="${basePath}/new" class="button is-primary">
               <span class="icon is-small">
                 <i class="fas fa-plus"></i>
               </span>
-              <span>Nuevo Remito</span>
+              <span>Nueva Orden de Compra</span>
             </a>
           </div>
         </div>
@@ -92,7 +91,7 @@ module.exports = ({ remitos, proveedores, estados = [], filters, basePath }) => 
           </form>
         </div>
 
-        <!-- Tabla de remitos -->
+        <!-- Tabla de órdenes -->
         <div class="table-container" style="overflow: visible;">
           <table class="table is-fullwidth is-hoverable">
             <thead>
@@ -101,64 +100,68 @@ module.exports = ({ remitos, proveedores, estados = [], filters, basePath }) => 
                 <th>Fecha</th>
                 <th>Proveedor</th>
                 <th>Estado</th>
+                <th>Forma de Pago</th>
                 <th class="has-text-right">Total</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              ${remitos.length === 0 ? `
+              ${ordenes.length === 0 ? `
                 <tr>
-                  <td colspan="6" class="has-text-centered has-text-grey">
-                    No se encontraron remitos con los filtros aplicados.
+                  <td colspan="7" class="has-text-centered has-text-grey">
+                    No se encontraron órdenes con los filtros aplicados.
                   </td>
                 </tr>
-              ` : remitos.map(remito => {
-                const puedeEditar = remito.estado === 'BORRADOR';
-                const transiciones = getTransicionesValidas(remito.estado);
+              ` : ordenes.map(orden => {
+                const puedeEditar = orden.estado === 'BORRADOR';
+                const transiciones = getTransicionesValidas(orden.estado);
                 
                 return `
                   <tr>
                     <td>
-                      <strong>${remito.letra_comp}${remito.sucursal_comp}-${remito.numero_comp}</strong>
+                      <strong>${orden.letra_comp}${orden.sucursal_comp}-${orden.numero_comp}</strong>
                     </td>
                     <td>
-                      ${new Date(remito.fecha).toLocaleDateString('es-AR')}
+                      ${new Date(orden.fecha).toLocaleDateString('es-AR')}
                     </td>
                     <td>
-                      ${remito.Proveedor?.nombre_prov || 'Sin proveedor'}
+                      ${orden.Proveedor?.nombre_prov || 'Sin proveedor'}
                     </td>
                     <td>
-                      <span class="tag is-${getEstadoColor(remito.estado)}">
-                        ${remito.estado}
+                      <span class="tag is-${getEstadoColor(orden.estado)}">
+                        ${orden.estado}
                       </span>
                     </td>
+                    <td>
+                      ${orden.FormaPago?.nombre || 'N/A'}
+                    </td>
                     <td class="has-text-right">
-                      <strong>$${Number(remito.total_comp).toFixed(2)}</strong>
+                      <strong>$${Number(orden.total_comp).toFixed(2)}</strong>
                     </td>
                     <td>
                       <div class="dropdown is-right is-up">
                         <div class="dropdown-trigger">
-                          <button class="button is-small toggle-dropdown" data-id="${remito.id_comp}">
+                          <button class="button is-small toggle-dropdown" data-id="${orden.id_comp}">
                             <span class="icon is-small">
                               <i class="fas fa-angle-down" aria-hidden="true"></i>
                             </span>
                           </button>
                         </div>
-                        <div class="dropdown-menu" id="dropdown-menu-${remito.id_comp}" role="menu">
+                        <div class="dropdown-menu" id="dropdown-menu-${orden.id_comp}" role="menu">
                           <div class="dropdown-content">
-                            <a href="${basePath}/${remito.id_comp}" class="dropdown-item">
+                            <a href="${basePath}/${orden.id_comp}" class="dropdown-item">
                               <span class="icon is-small"><i class="fas fa-eye"></i></span>
                               Ver detalle
                             </a>
                             ${puedeEditar ? `
-                              <a href="${basePath}/${remito.id_comp}/edit" class="dropdown-item">
+                              <a href="${basePath}/${orden.id_comp}/edit" class="dropdown-item">
                                 <span class="icon is-small"><i class="fas fa-edit"></i></span>
                                 Editar
                               </a>
                             ` : `
                               <span class="dropdown-item has-text-grey">
                                 <span class="icon is-small"><i class="fas fa-lock"></i></span>
-                                No editable (${remito.estado})
+                                No editable (${orden.estado})
                               </span>
                             `}
                             
@@ -169,9 +172,9 @@ module.exports = ({ remitos, proveedores, estados = [], filters, basePath }) => 
                               </div>
                               ${transiciones.map(nuevoEstado => `
                                 <a class="dropdown-item cambiar-estado" 
-                                   data-id="${remito.id_comp}" 
+                                   data-id="${orden.id_comp}" 
                                    data-estado="${nuevoEstado}"
-                                   data-numero="${remito.numero_comp}">
+                                   data-numero="${orden.numero_comp}">
                                   <span class="tag is-small is-${getEstadoColor(nuevoEstado)}">
                                     ${nuevoEstado}
                                   </span>
@@ -214,7 +217,7 @@ module.exports = ({ remitos, proveedores, estados = [], filters, basePath }) => 
                 const id = this.dataset.id;
                 const nuevoEstado = this.dataset.estado;
                 const numero = this.dataset.numero;
-                if (confirm(\`¿Está seguro de cambiar el estado del remito \${numero} a \${nuevoEstado}?\`)) {
+                if (confirm(\`¿Está seguro de cambiar el estado de la orden \${numero} a \${nuevoEstado}?\`)) {
                   const form = document.createElement('form');
                   form.method = 'POST';
                   form.action = \`${basePath}/\${id}/estado\`;

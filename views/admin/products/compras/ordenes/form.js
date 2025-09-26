@@ -1,14 +1,13 @@
-// views/admin/products/compras/remitos/form.js
 const layout = require('../../layout');
 
 const getError = (errors, prop) => errors?.[prop] || '';
 
-module.exports = ({ mode, remito, proveedores, productos = [], formasPago = [], estados = [], errors = {} }) => {
+module.exports = ({ mode, orden, proveedores, productos = [], formasPago = [], estados = [], errors = {} }) => {
   const isNew = mode === 'new';
-  const title = isNew ? 'Nuevo Remito' : `Editar Remito #${remito.numero_comp}`;
-  const action = isNew ? '/compras/remitos/new' : `/compras/remitos/${remito.id_comp}/edit`;
+  const title = isNew ? 'Nueva Orden de Compra' : `Editar Orden #${orden.numero_comp}`;
+  const action = isNew ? '/compras/ordenes/new' : `/compras/ordenes/${orden.id_comp}/edit`;
 
-  // Render fila de detalle (HTML)
+  // Render fila de detalle
   const renderDetailRow = (detalle = {}) => {
     const productOptions = productos.map(p => 
       `<option value="${p.id_prod}" ${detalle.id_prod == p.id_prod ? 'selected' : ''}>
@@ -20,34 +19,43 @@ module.exports = ({ mode, remito, proveedores, productos = [], formasPago = [], 
       <tr class="detail-row">
         <td style="width: 40%;">
           <div class="select is-fullwidth is-small">
-            <select name="id_prod[]" class="product-select" required>
+            <select name="id_prod[]" required>
               <option value="">Seleccionar artículo...</option>
               ${productOptions}
             </select>
           </div>
         </td>
-        <td><input class="input is-small cantidad-input" type="number" name="cantidad[]" value="${detalle.cantidad || ''}" step="0.001" min="0.001" placeholder="0.000" required></td>
-        <td><input class="input is-small precio-input" type="number" name="precio[]" value="${detalle.precio || ''}" step="0.01" min="0" placeholder="0.00" required></td>
+        <td>
+          <input class="input is-small cantidad-input" type="number" name="cantidad[]" 
+                 value="${detalle.cantidad || ''}" step="0.001" min="0.001" required>
+        </td>
+        <td>
+          <input class="input is-small precio-input" type="number" name="precio[]" 
+                 value="${detalle.precio || ''}" step="0.01" min="0" required>
+        </td>
         <td class="subtotal-cell has-text-right has-text-weight-bold">$0.00</td>
-        <td><button type="button" class="button is-danger is-light is-small remove-row-btn">×</button></td>
+        <td>
+          <button type="button" class="button is-danger is-light is-small remove-row-btn">×</button>
+        </td>
       </tr>
     `;
   };
 
-  const detailRows = (remito.detalles || []).map(renderDetailRow).join('');
+  const detailRows = (orden.detalles || []).map(renderDetailRow).join('');
 
   return layout({
     content: `
       <section class="inventory-card">
         <h1 class="title">${title}</h1>
-        
+
         ${getError(errors, 'general') ? `<div class="notification is-danger">${getError(errors, 'general')}</div>` : ''}
 
         <form method="POST" action="${action}">
           <div class="columns">
             <div class="column">
               <label class="label">Fecha</label>
-              <input class="input" type="date" name="fecha" value="${remito.fecha || new Date().toISOString().split('T')[0]}" required>
+              <input class="input" type="date" name="fecha" 
+                     value="${orden.fecha || new Date().toISOString().split('T')[0]}" required>
             </div>
             <div class="column">
               <label class="label">Proveedor</label>
@@ -55,7 +63,9 @@ module.exports = ({ mode, remito, proveedores, productos = [], formasPago = [], 
                 <select name="id_prov" required>
                   <option value="">Seleccionar...</option>
                   ${(proveedores || []).map(p => 
-                    `<option value="${p.id_prov}" ${remito.id_prov == p.id_prov ? 'selected' : ''}>${p.nombre_prov}</option>`
+                    `<option value="${p.id_prov}" ${orden.id_prov == p.id_prov ? 'selected' : ''}>
+                      ${p.nombre_prov}
+                    </option>`
                   ).join('')}
                 </select>
               </div>
@@ -66,8 +76,8 @@ module.exports = ({ mode, remito, proveedores, productos = [], formasPago = [], 
               <div class="select is-fullwidth">
                 <select name="estado">
                   ${(estados || [])
-                    .filter(e => !(isNew && e === 'ANULADO'))  // 🚀 Oculta ANULADO en alta
-                    .map(e => `<option value="${e}" ${remito.estado == e ? 'selected' : ''}>${e}</option>`)
+                    .filter(e => !(isNew && e === 'ANULADA')) // No mostrar "Anulada" en alta
+                    .map(e => `<option value="${e}" ${orden.estado == e ? 'selected' : ''}>${e}</option>`)
                     .join('')}
                 </select>
               </div>
@@ -75,29 +85,28 @@ module.exports = ({ mode, remito, proveedores, productos = [], formasPago = [], 
           </div>
 
           <div class="columns">
-<div class="column is-half">
-  <label class="label">Número</label>
-  <div class="field has-addons">
-    <p class="control">
-      <div class="select">
-        <select name="letra_comp" required>
-          <option value="A" ${remito.letra_comp === 'A' ? 'selected' : ''}>A</option>
-          <option value="B" ${remito.letra_comp === 'B' ? 'selected' : ''}>B</option>
-          <option value="C" ${remito.letra_comp === 'C' ? 'selected' : ''}>C</option>
-        </select>
-      </div>
-    </p>
-    <p class="control">
-      <input class="input" style="width: 80px;" type="text" name="sucursal_comp"
-        value="${remito.sucursal_comp || '0001'}" maxlength="4">
-    </p>
-    <p class="control is-expanded">
-      <input class="input" type="text" name="numero_comp" value="${remito.numero_comp || ''}"
-        placeholder="Dejar vacío para nuevo" maxlength="8">
-    </p>
-  </div>
-</div>
-
+            <div class="column is-half">
+              <label class="label">Número</label>
+              <div class="field has-addons">
+                <p class="control">
+                  <div class="select">
+                    <select name="letra_comp" required>
+                      <option value="A" ${orden.letra_comp === 'A' ? 'selected' : ''}>A</option>
+                      <option value="B" ${orden.letra_comp === 'B' ? 'selected' : ''}>B</option>
+                      <option value="C" ${orden.letra_comp === 'C' ? 'selected' : ''}>C</option>
+                    </select>
+                  </div>
+                </p>
+                <p class="control">
+                  <input class="input" style="width: 80px;" type="text" name="sucursal_comp"
+                         value="${orden.sucursal_comp || '0001'}" maxlength="4">
+                </p>
+                <p class="control is-expanded">
+                  <input class="input" type="text" name="numero_comp" value="${orden.numero_comp || ''}"
+                         placeholder="Dejar vacío para nuevo" maxlength="8">
+                </p>
+              </div>
+            </div>
 
             <div class="column">
               <label class="label">Forma de Pago</label>
@@ -105,7 +114,7 @@ module.exports = ({ mode, remito, proveedores, productos = [], formasPago = [], 
                 <select name="id_fp">
                   <option value="">Seleccionar...</option>
                   ${(formasPago || []).map(fp => 
-                    `<option value="${fp.id_fp}" ${remito.id_fp == fp.id_fp ? 'selected' : ''}>
+                    `<option value="${fp.id_fp}" ${orden.id_fp == fp.id_fp ? 'selected' : ''}>
                       ${fp.nombre}
                     </option>`
                   ).join('')}
@@ -117,12 +126,11 @@ module.exports = ({ mode, remito, proveedores, productos = [], formasPago = [], 
           <div class="columns">
             <div class="column">
               <label class="label">Observaciones</label>
-              <textarea class="textarea" name="observacion">${remito.observacion || ''}</textarea>
+              <textarea class="textarea" name="observacion">${orden.observacion || ''}</textarea>
             </div>
           </div>
-          
+
           <hr>
-          
           <h2 class="subtitle is-5">Artículos</h2>
           <table class="table is-fullwidth">
             <thead>
@@ -148,12 +156,11 @@ module.exports = ({ mode, remito, proveedores, productos = [], formasPago = [], 
               </tr>
             </tfoot>
           </table>
-          
+
           <hr>
-          
           <div class="field is-grouped">
             <div class="control"><button class="button is-primary">Guardar</button></div>
-            <div class="control"><a href="/compras/remitos" class="button is-light">Cancelar</a></div>
+            <div class="control"><a href="/compras/ordenes" class="button is-light">Cancelar</a></div>
           </div>
         </form>
       </section>
