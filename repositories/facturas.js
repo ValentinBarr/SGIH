@@ -1,4 +1,3 @@
-// repositories/facturas.js
 const { PrismaClient } = require('../generated/prisma');
 const prisma = new PrismaClient();
 
@@ -14,7 +13,7 @@ const getTipoFacturaId = async () => {
     where: { codigo: 'FAC' },
     select: { id_tipoComp: true },
   });
-  if (!tipo) throw new Error('Tipo de comprobante "FC" no encontrado');
+  if (!tipo) throw new Error('Tipo de comprobante "FAC" no encontrado');
   return tipo.id_tipoComp;
 };
 
@@ -56,19 +55,30 @@ class FacturasRepository {
 
     return prisma.$transaction(async (tx) => {
       let numeroComp = header.numero_comp;
+
+      // 🔹 Autonumeración segura
       if (!numeroComp || numeroComp.trim() === '') {
-        const last = await tx.comprobante.findFirst({
-          where: {
-            id_tipoComp: tipoFC,
-            letra_comp: header.letra_comp || 'A',
-            sucursal_comp: header.sucursal_comp || '0001',
-          },
-          orderBy: { numero_comp: 'desc' },
-        });
-        const next = last
-          ? String(Number(last.numero_comp) + 1).padStart(8, '0')
-          : '00000001';
-        numeroComp = next;
+const last = await tx.comprobante.findFirst({
+  where: {
+    id_tipoComp: tipoFC,
+    letra_comp: header.letra_comp || 'A',
+    sucursal_comp: header.sucursal_comp || '0001',
+  },
+  orderBy: {
+    id_comp: 'desc', // siempre el último insertado
+  },
+  select: { numero_comp: true },
+});
+
+let next = '00000001';
+if (last && last.numero_comp) {
+  const lastNum = parseInt(last.numero_comp, 10);
+  if (!isNaN(lastNum)) {
+    next = String(lastNum + 1).padStart(8, '0');
+  }
+}
+numeroComp = next;
+
       }
 
       const factura = await tx.comprobante.create({

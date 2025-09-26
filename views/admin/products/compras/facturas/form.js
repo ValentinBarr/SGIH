@@ -57,10 +57,29 @@ module.exports = ({ mode, factura, proveedores, productos = [], formasPago = [],
           </div>
 
           <div class="columns">
-            <div class="column">
+            <div class="column is-half">
               <label class="label">Número</label>
-              <input class="input" type="text" name="numero_comp" value="${factura.numero_comp || ''}" placeholder="Dejar vacío para autoincremento" maxlength="8">
+              <div class="field has-addons">
+                <p class="control">
+                  <div class="select">
+                    <select name="letra_comp" required>
+                      <option value="A" ${factura.letra_comp === 'A' ? 'selected' : ''}>A</option>
+                      <option value="B" ${factura.letra_comp === 'B' ? 'selected' : ''}>B</option>
+                      <option value="C" ${factura.letra_comp === 'C' ? 'selected' : ''}>C</option>
+                    </select>
+                  </div>
+                </p>
+                <p class="control">
+                  <input class="input" style="width: 80px;" type="text" name="sucursal_comp"
+                         value="${factura.sucursal_comp || '0001'}" maxlength="4">
+                </p>
+                <p class="control is-expanded">
+                  <input class="input" type="text" name="numero_comp" value="${factura.numero_comp || ''}"
+                         placeholder="Dejar vacío para nuevo" maxlength="8">
+                </p>
+              </div>
             </div>
+
             <div class="column">
               <label class="label">Forma de Pago</label>
               <div class="select is-fullwidth">

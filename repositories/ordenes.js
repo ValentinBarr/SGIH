@@ -18,6 +18,9 @@ const getTipoOrdenId = async () => {
 };
 
 class OrdenesRepository {
+  // =============================
+  // LISTADO
+  // =============================
   async list({ q, id_prov, estado } = {}) {
     const where = { id_tipoComp: await getTipoOrdenId() };
     if (q) where.numero_comp = { contains: q, mode: 'insensitive' };
@@ -26,81 +29,96 @@ class OrdenesRepository {
 
     return prisma.comprobante.findMany({
       where,
-      include: { Proveedor: true },
+      include: {
+        Proveedor: true,
+        FormaPago: true, // 👈 importante para mostrar nombre en la vista
+      },
       orderBy: [{ fecha: 'desc' }, { id_comp: 'desc' }],
     });
   }
 
+  // =============================
+  // GET BY ID
+  // =============================
   async getById(id_comp) {
     const orden = await prisma.comprobante.findUnique({
       where: { id_comp: Number(id_comp) },
       include: {
         Proveedor: true,
+        FormaPago: true, // 👈 también acá
         Detalles: { include: { Producto: true } },
-        FormaPago: true,
       },
     });
     if (orden) orden.detalles = orden.Detalles;
     return orden;
   }
 
-async create(data) {
-  const { detalles, ...header } = data;
-  const total = detalles.reduce(
-    (sum, d) => sum + (Number(d.cantidad) || 0) * (Number(d.precio) || 0),
-    0
-  );
+  // =============================
+  // CREAR ORDEN
+  // =============================
+  async create(data) {
+    const { detalles, ...header } = data;
+    const total = detalles.reduce(
+      (sum, d) => sum + (Number(d.cantidad) || 0) * (Number(d.precio) || 0),
+      0
+    );
 
-  const tipoOC = await getTipoOrdenId();
+    const tipoOC = await getTipoOrdenId();
 
-  return prisma.$transaction(async (tx) => {
-    let numeroComp = header.numero_comp;
+    return prisma.$transaction(async (tx) => {
+      let numeroComp = header.numero_comp;
 
-    // 🔹 Si no viene número, lo generamos automáticamente
-    if (!numeroComp || numeroComp.trim() === '') {
-      const lastOrden = await tx.comprobante.findFirst({
-        where: {
+      // 🔹 Autoincremento del número
+      if (!numeroComp || numeroComp.trim() === '') {
+        const lastOrden = await tx.comprobante.findFirst({
+          where: {
+            id_tipoComp: tipoOC,
+            letra_comp: header.letra_comp || 'A',
+            sucursal_comp: header.sucursal_comp || '0001',
+          },
+          orderBy: { id_comp: 'desc' }, // usamos id_comp para mayor seguridad
+          select: { numero_comp: true },
+        });
+
+        let next = '00000001';
+        if (lastOrden && lastOrden.numero_comp) {
+          const lastNum = parseInt(lastOrden.numero_comp, 10);
+          if (!isNaN(lastNum)) {
+            next = String(lastNum + 1).padStart(8, '0');
+          }
+        }
+        numeroComp = next;
+      }
+
+      const orden = await tx.comprobante.create({
+        data: {
+          ...header,
           id_tipoComp: tipoOC,
-          letra_comp: header.letra_comp || 'A',
-          sucursal_comp: header.sucursal_comp || '0001',
+          numero_comp: numeroComp,
+          total_comp: Number(total.toFixed(2)),
+          saldo_comp: Number(total.toFixed(2)),
+          estado: header.estado || ESTADOS_ORDEN.BORRADOR,
         },
-        orderBy: { numero_comp: 'desc' },
       });
 
-      const nextNumber = lastOrden
-        ? String(Number(lastOrden.numero_comp) + 1).padStart(8, '0')
-        : '00000001';
+      if (detalles.length > 0) {
+        await tx.detalleComprobante.createMany({
+          data: detalles.map((d) => ({
+            id_comp: orden.id_comp,
+            id_prod: Number(d.id_prod),
+            cantidad: Number(d.cantidad),
+            precio: Number(d.precio),
+          })),
+        });
+      }
 
-      numeroComp = nextNumber;
-    }
-
-    const orden = await tx.comprobante.create({
-      data: {
-        ...header,
-        id_tipoComp: tipoOC,
-        numero_comp: numeroComp,
-        total_comp: Number(total.toFixed(2)),
-        saldo_comp: Number(total.toFixed(2)),
-        estado: header.estado || ESTADOS_ORDEN.BORRADOR,
-      },
+      return orden;
     });
+  }
 
-    if (detalles.length > 0) {
-      await tx.detalleComprobante.createMany({
-        data: detalles.map((d) => ({
-          id_comp: orden.id_comp,
-          id_prod: Number(d.id_prod),
-          cantidad: Number(d.cantidad),
-          precio: Number(d.precio),
-        })),
-      });
-    }
-
-    return orden;
-  });
-}
-
-
+  // =============================
+  // EDITAR ORDEN
+  // =============================
   async update(id_comp, data) {
     const ordenExistente = await prisma.comprobante.findUnique({
       where: { id_comp: Number(id_comp) },
@@ -121,13 +139,13 @@ async create(data) {
         where: { id_comp: Number(id_comp) },
         data: {
           ...header,
-          fecha: new Date(header.fecha), // 👈 corrección
+          fecha: new Date(header.fecha),
           total_comp: Number(total.toFixed(2)),
           saldo_comp: Number(total.toFixed(2)),
         },
       });
 
-      await tx.detalleComprobante.deleteMany({ where: { id_comp } });
+      await tx.detalleComprobante.deleteMany({ where: { id_comp: Number(id_comp) } });
 
       if (detalles.length > 0) {
         await tx.detalleComprobante.createMany({
@@ -144,6 +162,9 @@ async create(data) {
     });
   }
 
+  // =============================
+  // CAMBIAR ESTADO
+  // =============================
   async changeEstado(id_comp, nuevoEstado) {
     return prisma.comprobante.update({
       where: { id_comp: Number(id_comp) },
@@ -151,6 +172,9 @@ async create(data) {
     });
   }
 
+  // =============================
+  // TRANSICIONES
+  // =============================
   getTransicionesValidas(estado) {
     const transiciones = {
       BORRADOR: ['PENDIENTE', 'ANULADA'],
@@ -161,6 +185,9 @@ async create(data) {
     return transiciones[estado] || [];
   }
 
+  // =============================
+  // HELPERS
+  // =============================
   getActiveProveedores() {
     return prisma.proveedor.findMany({
       where: { activo_prov: true },
@@ -175,19 +202,16 @@ async create(data) {
     });
   }
 
+  getActiveFormasPago() {
+    return prisma.formaPago.findMany({
+      where: { activo: true },
+      orderBy: { nombre: 'asc' },
+    });
+  }
+
   getEstadosDisponibles() {
     return Object.values(ESTADOS_ORDEN);
   }
-
-
-getActiveFormasPago() {
-  return prisma.formaPago.findMany({
-    where: { activo: true },
-    orderBy: { nombre: 'asc' },
-  });
-}
-
-
 }
 
 module.exports = {

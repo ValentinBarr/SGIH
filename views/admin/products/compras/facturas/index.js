@@ -82,7 +82,7 @@ module.exports = ({ facturas, proveedores, estados = [], filters, basePath }) =>
         </div>
 
         <!-- Tabla -->
-        <div class="table-container">
+        <div class="table-container" style="overflow: visible;">
           <table class="table is-fullwidth is-hoverable">
             <thead>
               <tr>
@@ -110,14 +110,49 @@ module.exports = ({ facturas, proveedores, estados = [], filters, basePath }) =>
                     <td>${f.FormaPago?.nombre || 'N/A'}</td>
                     <td class="has-text-right"><strong>$${Number(f.total_comp).toFixed(2)}</strong></td>
                     <td>
-                      <a href="${basePath}/${f.id_comp}" class="button is-small">Ver</a>
-                      ${puedeEditar ? `<a href="${basePath}/${f.id_comp}/edit" class="button is-small is-info">Editar</a>` : ''}
-                      ${transiciones.map(e => `
-                        <form method="POST" action="${basePath}/${f.id_comp}/estado" style="display:inline;">
-                          <input type="hidden" name="nuevo_estado" value="${e}">
-                          <button type="submit" class="button is-small is-light">→ ${e}</button>
-                        </form>
-                      `).join('')}
+                      <div class="dropdown is-right is-up">
+                        <div class="dropdown-trigger">
+                          <button class="button is-small toggle-dropdown" data-id="${f.id_comp}">
+                            <span class="icon is-small">
+                              <i class="fas fa-angle-down" aria-hidden="true"></i>
+                            </span>
+                          </button>
+                        </div>
+                        <div class="dropdown-menu" id="dropdown-menu-${f.id_comp}" role="menu">
+                          <div class="dropdown-content">
+                            <a href="${basePath}/${f.id_comp}" class="dropdown-item">
+                              <span class="icon is-small"><i class="fas fa-eye"></i></span>
+                              Ver detalle
+                            </a>
+                            ${puedeEditar ? `
+                              <a href="${basePath}/${f.id_comp}/edit" class="dropdown-item">
+                                <span class="icon is-small"><i class="fas fa-edit"></i></span>
+                                Editar
+                              </a>
+                            ` : `
+                              <span class="dropdown-item has-text-grey">
+                                <span class="icon is-small"><i class="fas fa-lock"></i></span>
+                                No editable (${f.estado})
+                              </span>
+                            `}
+                            
+                            ${transiciones.length > 0 ? `
+                              <hr class="dropdown-divider">
+                              <div class="dropdown-item">
+                                <p class="has-text-grey is-size-7">Cambiar estado:</p>
+                              </div>
+                              ${transiciones.map(e => `
+                                <a class="dropdown-item cambiar-estado" 
+                                   data-id="${f.id_comp}" 
+                                   data-estado="${e}"
+                                   data-numero="${f.numero_comp}">
+                                  <span class="tag is-small is-${getEstadoColor(e)}">${e}</span>
+                                </a>
+                              `).join('')}
+                            ` : ''}
+                          </div>
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 `;
@@ -125,6 +160,48 @@ module.exports = ({ facturas, proveedores, estados = [], filters, basePath }) =>
             </tbody>
           </table>
         </div>
+
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            // toggle de dropdown
+            document.querySelectorAll('.toggle-dropdown').forEach(btn => {
+              btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const dropdown = this.closest('.dropdown');
+                dropdown.classList.toggle('is-active');
+              });
+            });
+
+            // cerrar al hacer click fuera
+            document.addEventListener('click', function(e) {
+              document.querySelectorAll('.dropdown.is-active').forEach(d => {
+                if (!d.contains(e.target)) d.classList.remove('is-active');
+              });
+            });
+
+            // manejar cambio de estado
+            document.querySelectorAll('.cambiar-estado').forEach(btn => {
+              btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const id = this.dataset.id;
+                const nuevoEstado = this.dataset.estado;
+                const numero = this.dataset.numero;
+                if (confirm(\`¿Está seguro de cambiar la factura \${numero} a \${nuevoEstado}?\`)) {
+                  const form = document.createElement('form');
+                  form.method = 'POST';
+                  form.action = \`${basePath}/\${id}/estado\`;
+                  const input = document.createElement('input');
+                  input.type = 'hidden';
+                  input.name = 'nuevo_estado';
+                  input.value = nuevoEstado;
+                  form.appendChild(input);
+                  document.body.appendChild(form);
+                  form.submit();
+                }
+              });
+            });
+          });
+        </script>
       </section>
     `
   });

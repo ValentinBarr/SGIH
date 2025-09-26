@@ -107,47 +107,51 @@ class RemitosRepository {
   }
 
   // 📌 Actualizar
-  async update(id_comp, data) {
-    try {
-      const remitoExistente = await prisma.comprobante.findUnique({ where: { id_comp: Number(id_comp) } });
-      if (!remitoExistente) throw new Error('El remito no existe');
-      if (remitoExistente.estado !== ESTADOS_REMITO.BORRADOR) {
-        throw new Error(`No se puede editar un remito en estado ${remitoExistente.estado}.`);
-      }
-
-      const { detalles, ...headerData } = data;
-      const total_comp = detalles.reduce((sum, item) =>
-        sum + ((Number(item.cantidad) || 0) * (Number(item.precio) || 0)), 0);
-
-      return prisma.$transaction(async (tx) => {
-        const remito = await tx.comprobante.update({
-          where: { id_comp: Number(id_comp) },
-          data: {
-            ...headerData,
-            total_comp: Number(total_comp.toFixed(2)),
-            saldo_comp: Number(total_comp.toFixed(2))
-          }
-        });
-
-        await tx.detalleComprobante.deleteMany({ where: { id_comp: Number(id_comp) } });
-
-        if (detalles && detalles.length > 0) {
-          await tx.detalleComprobante.createMany({
-            data: detalles.map(det => ({
-              id_comp: remito.id_comp,
-              id_prod: Number(det.id_prod),
-              cantidad: Number(det.cantidad),
-              precio: Number(det.precio)
-            }))
-          });
-        }
-        return remito;
-      });
-    } catch (error) {
-      console.error(`❌ Error al actualizar remito ${id_comp}:`, error);
-      throw error;
-    }
+async update(id_comp, data) {
+  const facturaExistente = await prisma.comprobante.findUnique({
+    where: { id_comp: Number(id_comp) }, // 👈 convertir acá
+  });
+  if (!facturaExistente) throw new Error('Factura no encontrada');
+  if (facturaExistente.estado !== ESTADOS_FACTURA.BORRADOR) {
+    throw new Error(`No se puede editar una factura en estado ${facturaExistente.estado}`);
   }
+
+  const { detalles, ...header } = data;
+  const total = detalles.reduce(
+    (sum, d) => sum + (Number(d.cantidad) || 0) * (Number(d.precio) || 0),
+    0
+  );
+
+  return prisma.$transaction(async (tx) => {
+    const factura = await tx.comprobante.update({
+      where: { id_comp: Number(id_comp) }, // 👈 también acá
+      data: {
+        ...header,
+        fecha: new Date(header.fecha),
+        total_comp: Number(total.toFixed(2)),
+        saldo_comp: Number(total.toFixed(2)),
+      },
+    });
+
+    await tx.detalleComprobante.deleteMany({
+      where: { id_comp: Number(id_comp) }, // 👈 y acá
+    });
+
+    if (detalles.length > 0) {
+      await tx.detalleComprobante.createMany({
+        data: detalles.map((d) => ({
+          id_comp: factura.id_comp, // este ya es int
+          id_prod: Number(d.id_prod),
+          cantidad: Number(d.cantidad),
+          precio: Number(d.precio),
+        })),
+      });
+    }
+
+    return factura;
+  });
+}
+
 
   // 📌 Cambiar estado
   async changeEstado(id_comp, nuevoEstado) {
