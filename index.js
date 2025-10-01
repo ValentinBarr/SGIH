@@ -1,20 +1,23 @@
 const express = require('express');
 const authRouter = require('./routes/admin/auth');
+const inicioRouter = require('./routes/inicio.js');
+const posRouter = require('./routes/admin/pos.js');
 
+// Rutas de Inventario
 const dashboardRouter = require('./routes/admin/inventario/dashboard.js');
 const articulosdRouter = require('./routes/admin/inventario/articulos.js');
 const movimientosRouter = require('./routes/admin/inventario/movimientos.js');
 const accionesRouter = require('./routes/admin/inventario/acciones.js');
 const depositoRouter = require('./routes/admin/inventario/deposito.js');
 const stockRouter = require('./routes/admin/inventario/stock.js');
+
+// Rutas de Compras
 const proveedorRouter = require('./routes/admin/compras/proveedores.js');
 const remitosRouter = require('./routes/admin/compras/remitos');
 const ordenesRouter = require('./routes/admin/compras/ordenes');
 const facturasRouter = require('./routes/admin/compras/facturas');
+const pagosRouter = require('./routes/admin/compras/pagos'); // <-- ✅ LÍNEA AÑADIDA
 
-const posRouter = require('./routes/admin/pos.js');
-
-const inicioRouter = require('./routes/inicio.js');
 const app = express();
 
 // IMPORTANTE: Configura el middleware ANTES de las rutas
@@ -33,21 +36,25 @@ app.use((req, res, next) => {
     next();
 });
 
-// Rutas
+// Rutas Generales
 app.use(authRouter);
 app.use(inicioRouter);
+app.use(posRouter);
+
+// Rutas de Módulo Inventario
 app.use(dashboardRouter);
 app.use(movimientosRouter);
 app.use(stockRouter);
 app.use(articulosdRouter);
-app.use(posRouter);
 app.use(depositoRouter);
 app.use(accionesRouter);
+
+// Rutas de Módulo Compras
 app.use(proveedorRouter);
 app.use(remitosRouter);
 app.use(ordenesRouter);
 app.use(facturasRouter);
-
+app.use(pagosRouter); // <-- ✅ LÍNEA AÑADIDA
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

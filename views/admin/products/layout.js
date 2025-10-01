@@ -63,7 +63,7 @@ module.exports = ({ content }) => {
               <li><a class="sidebar__sublink" href="/compras/ordenes">Ordenes de Compra</a></li>
               <li><a class="sidebar__sublink" href="/compras/facturas">Facturas</a></li>
               <li><a class="sidebar__sublink" href="/compras/remitos">Remitos</a></li>
-
+              <li><a class="sidebar__sublink" href="/compras/pagos">Ordenes de pago</a></li>
             </ul>
           </div>
 
