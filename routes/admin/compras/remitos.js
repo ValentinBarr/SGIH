@@ -138,7 +138,8 @@ router.post('/compras/remitos/new', async (req, res) => {
       id_fp: body.id_fp ? Number(body.id_fp) : null,
       letra_comp: (body.letra_comp || 'R').toUpperCase(),
       sucursal_comp: (body.sucursal_comp || '0001').padStart(4, '0'),
-      numero_comp: (body.numero_comp || '0').padStart(8, '0'),
+      // ✅ si viene vacío, lo dejamos vacío para que el repo lo autogenere
+      numero_comp: body.numero_comp ? body.numero_comp.padStart(8, '0') : '',
       observacion: body.observacion || null,
       estado: body.estado,
       detalles
@@ -186,7 +187,8 @@ router.post('/compras/remitos/:id/edit', async (req, res) => {
       id_fp: body.id_fp ? Number(body.id_fp) : null,
       letra_comp: (body.letra_comp || 'R').toUpperCase(),
       sucursal_comp: (body.sucursal_comp || '0001').padStart(4, '0'),
-      numero_comp: (body.numero_comp || '0').padStart(8, '0'),
+      // ✅ lo mismo aquí
+      numero_comp: body.numero_comp ? body.numero_comp.padStart(8, '0') : '',
       observacion: body.observacion || null,
       estado: body.estado,
       detalles

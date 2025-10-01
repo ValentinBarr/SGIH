@@ -78,47 +78,21 @@ router.post('/inventarios/depositos/:id/movimientos', async (req, res) => {
     const depOrigenId = Number(req.params.id);
     const { id_dep_destino, observacion, ...body } = req.body;
 
-    if (!id_dep_destino) throw new Error('Debe seleccionar un depósito destino');
+    if (!id_dep_destino) {
+      return res.status(400).send('Debe seleccionar un depósito destino');
+    }
 
-    // Buscar tipos de movimiento
-    const tipoOut = await prisma.tipoMovimiento.findFirst({
-      where: { direccion: 'OUT' }
-    });
-    const tipoIn = await prisma.tipoMovimiento.findFirst({
-      where: { direccion: 'IN' }
-    });
+    // Datos para recargar la vista en caso de error
+    const dep = await Repo.getDeposito(depOrigenId);
+    const { grid, total, pages } = await Repo.getStockGrid(depOrigenId, 1, 10);
+    const movimientos = await Repo.getMovimientos(depOrigenId, 20);
+    const depositos = await Repo.getDepositosActivos();
+    const productos = grid.map(p => ({ id_prodDep: p.id_prodDep, nombre: p.nombre }));
+    const tiposComprobantes = await Repo.getTiposComprobantes();
 
-    if (!tipoOut || !tipoIn) throw new Error('Faltan tipos de movimiento IN/OUT');
+    const errores = [];
 
-    // =============================
-    // 1) Crear movimiento de SALIDA en depósito ORIGEN
-    // =============================
-    const movOut = await prisma.movimiento.create({
-      data: {
-        id_dep: depOrigenId,
-        id_tipoMov: tipoOut.id_tipoMov,
-        observacion: observacion
-          ? `Transferencia a dep ${id_dep_destino}: ${observacion}`
-          : `Transferencia a dep ${id_dep_destino}`
-      }
-    });
-
-    // =============================
-    // 2) Crear movimiento de ENTRADA en depósito DESTINO
-    // =============================
-    const movIn = await prisma.movimiento.create({
-      data: {
-        id_dep: Number(id_dep_destino),
-        id_tipoMov: tipoIn.id_tipoMov,
-        observacion: observacion
-          ? `Transferencia desde dep ${depOrigenId}: ${observacion}`
-          : `Transferencia desde dep ${depOrigenId}`
-      }
-    });
-
-    // =============================
-    // 3) Procesar productos enviados en el formulario
-    // =============================
+    // Validar productos del formulario
     for (const key of Object.keys(body)) {
       if (key.startsWith('producto_')) {
         const idx = key.split('_')[1];
@@ -126,15 +100,12 @@ router.post('/inventarios/depositos/:id/movimientos', async (req, res) => {
         const cantidad = Number(body[`cantidad_${idx}`] || 0);
 
         if (prodDepOrigenId && cantidad > 0) {
-          // 👉 Buscar el producto en el depósito origen
           const prodDepOrigen = await prisma.productoDeposito.findUnique({
             where: { id_prodDep: prodDepOrigenId },
             include: { Producto: true }
           });
 
-          if (!prodDepOrigen) {
-            throw new Error(`No se encontró el producto en el depósito origen`);
-          }
+          if (!prodDepOrigen) continue;
 
           // 👉 Verificar que existe en el depósito destino
           const prodDepDestino = await prisma.productoDeposito.findFirst({
@@ -145,10 +116,74 @@ router.post('/inventarios/depositos/:id/movimientos', async (req, res) => {
           });
 
           if (!prodDepDestino) {
-            throw new Error(
-              `El producto "${prodDepOrigen.Producto.nombre_prod}" no está parametrizado en el depósito destino`
-            );
+            errores.push(`El producto "${prodDepOrigen.Producto.nombre_prod}" no está parametrizado en el depósito destino`);
           }
+        }
+      }
+    }
+
+    // 🚨 Si hay errores, recargamos la vista con mensajes
+    if (errores.length > 0) {
+      return res.send(
+        detailView({
+          dep,
+          grid,
+          movimientos,
+          depositos,
+          productos,
+          tiposComprobantes,
+          pagination: { page: 1, total, pages },
+          errores // 👈 Pasamos los errores a la vista
+        })
+      );
+    }
+
+    // =============================
+    // Ejecutar transferencia si no hay errores
+    // =============================
+
+    const tipoOut = await prisma.tipoMovimiento.findFirst({ where: { direccion: 'OUT' } });
+    const tipoIn = await prisma.tipoMovimiento.findFirst({ where: { direccion: 'IN' } });
+    if (!tipoOut || !tipoIn) throw new Error('Faltan tipos de movimiento IN/OUT');
+
+    const movOut = await prisma.movimiento.create({
+      data: {
+        id_dep: depOrigenId,
+        id_tipoMov: tipoOut.id_tipoMov,
+        observacion: observacion
+          ? `Transferencia a dep ${id_dep_destino}: ${observacion}`
+          : `Transferencia a dep ${id_dep_destino}`
+      }
+    });
+
+    const movIn = await prisma.movimiento.create({
+      data: {
+        id_dep: Number(id_dep_destino),
+        id_tipoMov: tipoIn.id_tipoMov,
+        observacion: observacion
+          ? `Transferencia desde dep ${depOrigenId}: ${observacion}`
+          : `Transferencia desde dep ${depOrigenId}`
+      }
+    });
+
+    for (const key of Object.keys(body)) {
+      if (key.startsWith('producto_')) {
+        const idx = key.split('_')[1];
+        const prodDepOrigenId = Number(body[`producto_${idx}`]);
+        const cantidad = Number(body[`cantidad_${idx}`] || 0);
+
+        if (prodDepOrigenId && cantidad > 0) {
+          const prodDepOrigen = await prisma.productoDeposito.findUnique({
+            where: { id_prodDep: prodDepOrigenId },
+            include: { Producto: true }
+          });
+
+          const prodDepDestino = await prisma.productoDeposito.findFirst({
+            where: {
+              id_dep: Number(id_dep_destino),
+              id_prod: prodDepOrigen.id_prod
+            }
+          });
 
           // SALIDA (origen)
           await prisma.detalleMovimiento.create({
@@ -177,6 +212,7 @@ router.post('/inventarios/depositos/:id/movimientos', async (req, res) => {
     res.status(500).send('Error al registrar transferencia: ' + e.message);
   }
 });
+
 
 
 

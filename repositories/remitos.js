@@ -70,50 +70,76 @@ class RemitosRepository {
     }
   }
 
-  // 📌 Crear
-  async create(data) {
-    try {
-      const { detalles, ...headerData } = data;
-      const total_comp = detalles.reduce((sum, item) =>
-        sum + ((Number(item.cantidad) || 0) * (Number(item.precio) || 0)), 0);
 
-      return prisma.$transaction(async (tx) => {
-        const remito = await tx.comprobante.create({
-          data: {
-            ...headerData,
+// 📌 Crear
+async create(data) {
+  try {
+    const { detalles, ...headerData } = data;
+    const total_comp = detalles.reduce((sum, item) =>
+      sum + ((Number(item.cantidad) || 0) * (Number(item.precio) || 0)), 0);
+
+    return prisma.$transaction(async (tx) => {
+      let numeroComp = headerData.numero_comp;
+
+      // 🔹 Autonumeración si está vacío
+      if (!numeroComp || numeroComp.trim() === '') {
+        const last = await tx.comprobante.findFirst({
+          where: {
             id_tipoComp: await getTipoRemitoId(),
-            total_comp: Number(total_comp.toFixed(2)),
-            saldo_comp: Number(total_comp.toFixed(2)),
-            estado: headerData.estado || ESTADOS_REMITO.BORRADOR
-          }
+            letra_comp: headerData.letra_comp || 'R',
+            sucursal_comp: headerData.sucursal_comp || '0001',
+          },
+          orderBy: { id_comp: 'desc' }, // siempre el último insertado
+          select: { numero_comp: true },
         });
 
-        if (detalles && detalles.length > 0) {
-          await tx.detalleComprobante.createMany({
-            data: detalles.map(det => ({
-              id_comp: remito.id_comp,
-              id_prod: Number(det.id_prod),
-              cantidad: Number(det.cantidad),
-              precio: Number(det.precio)
-            }))
-          });
+        let next = '00000001';
+        if (last && last.numero_comp) {
+          const lastNum = parseInt(last.numero_comp, 10);
+          if (!isNaN(lastNum)) {
+            next = String(lastNum + 1).padStart(8, '0');
+          }
         }
-        return remito;
-      });
-    } catch (error) {
-      console.error('❌ Error al crear remito:', error);
-      throw error;
-    }
-  }
+        numeroComp = next;
+      }
 
-  // 📌 Actualizar
+      const remito = await tx.comprobante.create({
+        data: {
+          ...headerData,
+          id_tipoComp: await getTipoRemitoId(),
+          numero_comp: numeroComp,
+          total_comp: Number(total_comp.toFixed(2)),
+          saldo_comp: Number(total_comp.toFixed(2)),
+          estado: headerData.estado || ESTADOS_REMITO.BORRADOR,
+        }
+      });
+
+      if (detalles && detalles.length > 0) {
+        await tx.detalleComprobante.createMany({
+          data: detalles.map(det => ({
+            id_comp: remito.id_comp,
+            id_prod: Number(det.id_prod),
+            cantidad: Number(det.cantidad),
+            precio: Number(det.precio),
+          }))
+        });
+      }
+      return remito;
+    });
+  } catch (error) {
+    console.error('❌ Error al crear remito:', error);
+    throw error;
+  }
+}
+
+// 📌 Actualizar
 async update(id_comp, data) {
-  const facturaExistente = await prisma.comprobante.findUnique({
-    where: { id_comp: Number(id_comp) }, // 👈 convertir acá
+  const remitoExistente = await prisma.comprobante.findUnique({
+    where: { id_comp: Number(id_comp) },
   });
-  if (!facturaExistente) throw new Error('Factura no encontrada');
-  if (facturaExistente.estado !== ESTADOS_FACTURA.BORRADOR) {
-    throw new Error(`No se puede editar una factura en estado ${facturaExistente.estado}`);
+  if (!remitoExistente) throw new Error('Remito no encontrado');
+  if (remitoExistente.estado !== ESTADOS_REMITO.BORRADOR) {
+    throw new Error(`No se puede editar un remito en estado ${remitoExistente.estado}`);
   }
 
   const { detalles, ...header } = data;
@@ -123,10 +149,35 @@ async update(id_comp, data) {
   );
 
   return prisma.$transaction(async (tx) => {
-    const factura = await tx.comprobante.update({
-      where: { id_comp: Number(id_comp) }, // 👈 también acá
+    let numeroComp = header.numero_comp;
+
+    // 🔹 Autonumeración si lo dejan vacío al editar
+    if (!numeroComp || numeroComp.trim() === '') {
+      const last = await tx.comprobante.findFirst({
+        where: {
+          id_tipoComp: await getTipoRemitoId(),
+          letra_comp: header.letra_comp || remitoExistente.letra_comp,
+          sucursal_comp: header.sucursal_comp || remitoExistente.sucursal_comp,
+        },
+        orderBy: { id_comp: 'desc' },
+        select: { numero_comp: true },
+      });
+
+      let next = '00000001';
+      if (last && last.numero_comp) {
+        const lastNum = parseInt(last.numero_comp, 10);
+        if (!isNaN(lastNum)) {
+          next = String(lastNum + 1).padStart(8, '0');
+        }
+      }
+      numeroComp = next;
+    }
+
+    const remito = await tx.comprobante.update({
+      where: { id_comp: Number(id_comp) },
       data: {
         ...header,
+        numero_comp: numeroComp,
         fecha: new Date(header.fecha),
         total_comp: Number(total.toFixed(2)),
         saldo_comp: Number(total.toFixed(2)),
@@ -134,13 +185,13 @@ async update(id_comp, data) {
     });
 
     await tx.detalleComprobante.deleteMany({
-      where: { id_comp: Number(id_comp) }, // 👈 y acá
+      where: { id_comp: Number(id_comp) },
     });
 
     if (detalles.length > 0) {
       await tx.detalleComprobante.createMany({
         data: detalles.map((d) => ({
-          id_comp: factura.id_comp, // este ya es int
+          id_comp: remito.id_comp,
           id_prod: Number(d.id_prod),
           cantidad: Number(d.cantidad),
           precio: Number(d.precio),
@@ -148,9 +199,10 @@ async update(id_comp, data) {
       });
     }
 
-    return factura;
+    return remito;
   });
 }
+
 
 
   // 📌 Cambiar estado

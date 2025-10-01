@@ -22,11 +22,6 @@ module.exports = ({ content }) => {
 
         <nav id="sidebarNav" class="sidebar__nav">
           <a class="sidebar__link" href="/"><span class="sidebar__icon"></span><span class="sidebar__label">Inicio</span></a>
-          <a class="sidebar__link" href="/reservas"><span class="sidebar__icon"></span><span class="sidebar__label">Reservas</span></a>
-          <a class="sidebar__link" href="/check-in"><span class="sidebar__icon"></span><span class="sidebar__label">Check In</span></a>
-          <a class="sidebar__link" href="/check-out"><span class="sidebar__icon"></span><span class="sidebar__label">Check Out</span></a>
-          <a class="sidebar__link" href="/habitaciones"><span class="sidebar__icon"></span><span class="sidebar__label">Habitaciones</span></a>
-          <a class="sidebar__link" href="/pos"><span class="sidebar__icon"></span><span class="sidebar__label">POS</span></a>
 
           <!-- Inventarios -->
           <div class="sidebar__group" id="inventarios-group">
@@ -46,7 +41,6 @@ module.exports = ({ content }) => {
               <li><a class="sidebar__sublink" href="/inventarios/articulos">Artículos</a></li>
               <li><a class="sidebar__sublink" href="/inventarios/depositos">Depósitos</a></li>
               <li><a class="sidebar__sublink" href="/inventarios/movimientos">Movimientos</a></li>
-              <li><a class="sidebar__sublink" href="/inventarios/stock">Stock</a></li>
             </ul>
           </div>
 

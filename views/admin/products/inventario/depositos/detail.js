@@ -200,7 +200,7 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
           </div>
 
           <div id="productosContainer">
-            <div class="field is-grouped">
+            <div class="field is-grouped producto-row">
               <div class="control is-expanded">
                 <div class="select is-fullwidth">
                   <select name="producto_1" required>
@@ -210,6 +210,9 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
               </div>
               <div class="control">
                 <input type="number" name="cantidad_1" min="1" class="input" placeholder="Cantidad" required>
+              </div>
+              <div class="control">
+                <button type="button" class="button is-danger is-light removeBtn">✖</button>
               </div>
             </div>
           </div>
@@ -259,7 +262,7 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
           </div>
 
           <div id="entradaProductosContainer">
-            <div class="field is-grouped">
+            <div class="field is-grouped producto-row">
               <div class="control is-expanded">
                 <div class="select is-fullwidth">
                   <select name="producto_1" required>
@@ -269,6 +272,9 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
               </div>
               <div class="control">
                 <input type="number" name="cantidad_1" min="1" class="input" placeholder="Cantidad" required>
+              </div>
+              <div class="control">
+                <button type="button" class="button is-danger is-light removeBtn">✖</button>
               </div>
             </div>
           </div>
@@ -304,7 +310,7 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
           </div>
 
           <div id="consumoProductosContainer">
-            <div class="field is-grouped">
+            <div class="field is-grouped producto-row">
               <div class="control is-expanded">
                 <div class="select is-fullwidth">
                   <select name="producto_1" required>
@@ -314,6 +320,9 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
               </div>
               <div class="control">
                 <input type="number" name="cantidad_1" min="1" class="input" placeholder="Cantidad" required>
+              </div>
+              <div class="control">
+                <button type="button" class="button is-danger is-light removeBtn">✖</button>
               </div>
             </div>
           </div>
@@ -348,7 +357,7 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
       prodIndex++;
       const cont = document.getElementById('productosContainer');
       cont.insertAdjacentHTML('beforeend', \`
-        <div class="field is-grouped mt-2">
+        <div class="field is-grouped mt-2 producto-row">
           <div class="control is-expanded">
             <div class="select is-fullwidth">
               <select name="producto_\${prodIndex}" required>
@@ -359,6 +368,9 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
           <div class="control">
             <input type="number" name="cantidad_\${prodIndex}" min="1" class="input" placeholder="Cantidad" required>
           </div>
+          <div class="control">
+            <button type="button" class="button is-danger is-light removeBtn">✖</button>
+          </div>
         </div>\`);
     }
 
@@ -367,7 +379,7 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
       entradaIndex++;
       const cont = document.getElementById('entradaProductosContainer');
       cont.insertAdjacentHTML('beforeend', \`
-        <div class="field is-grouped mt-2">
+        <div class="field is-grouped mt-2 producto-row">
           <div class="control is-expanded">
             <div class="select is-fullwidth">
               <select name="producto_\${entradaIndex}" required>
@@ -378,6 +390,9 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
           <div class="control">
             <input type="number" name="cantidad_\${entradaIndex}" min="1" class="input" placeholder="Cantidad" required>
           </div>
+          <div class="control">
+            <button type="button" class="button is-danger is-light removeBtn">✖</button>
+          </div>
         </div>\`);
     }
 
@@ -386,7 +401,7 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
       consumoIndex++;
       const cont = document.getElementById('consumoProductosContainer');
       cont.insertAdjacentHTML('beforeend', \`
-        <div class="field is-grouped mt-2">
+        <div class="field is-grouped mt-2 producto-row">
           <div class="control is-expanded">
             <div class="select is-fullwidth">
               <select name="producto_\${consumoIndex}" required>
@@ -397,8 +412,18 @@ module.exports = ({ dep, grid, movimientos, depositos, productos, tiposComproban
           <div class="control">
             <input type="number" name="cantidad_\${consumoIndex}" min="1" class="input" placeholder="Cantidad" required>
           </div>
+          <div class="control">
+            <button type="button" class="button is-danger is-light removeBtn">✖</button>
+          </div>
         </div>\`);
     }
+
+    // 🗑️ Eliminar fila de producto (para todos los modales)
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('removeBtn')) {
+        e.target.closest('.producto-row').remove();
+      }
+    });
   </script>
 </section>
 `
