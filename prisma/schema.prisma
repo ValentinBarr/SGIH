@@ -15,17 +15,17 @@ datasource db {
 // Producto
 // ----------------------------
 model Producto {
-  id_prod                  Int       @id @default(autoincrement())
-  nombre_prod              String    @db.VarChar(120)
-  tipo_prod                String    @db.VarChar(20)   // INSUMO, VENDIBLE, AMENITY, etc.
-  stockeable_prod          Boolean
-  vendible_prod            Boolean
-  descuentaStockVenta_prod Boolean
-  stockMinimoGlobal_prod   Decimal?  @db.Decimal(18, 3)
-  activo_prod              Boolean
-  fechaAlta_prod           DateTime  @default(now())
+  id_prod                    Int                  @id @default(autoincrement())
+  nombre_prod                String               @db.VarChar(120)
+  tipo_prod                  String               @db.VarChar(20) // INSUMO, VENDIBLE, AMENITY, etc.
+  stockeable_prod            Boolean
+  vendible_prod              Boolean
+  descuentaStockVenta_prod   Boolean
+  stockMinimoGlobal_prod     Decimal?             @db.Decimal(18, 3)
+  activo_prod                Boolean
+  fechaAlta_prod             DateTime             @default(now())
 
-  ProductoDepositos ProductoDeposito[]
+  ProductoDepositos    ProductoDeposito[]
   DetallesComprobantes DetalleComprobante[]
 }
 
@@ -33,12 +33,12 @@ model Producto {
 // TipoDeposito
 // ----------------------------
 model TipoDeposito {
-  id_tipoDep                   Int     @id @default(autoincrement())
-  nombre_tipoDep               String  @db.VarChar(80)
-  esPuntoDeVenta_tipoDep       Boolean
-  esConsumoInterno_tipoDep     Boolean
+  id_tipoDep               Int      @id @default(autoincrement())
+  nombre_tipoDep           String   @db.VarChar(80)
+  esPuntoDeVenta_tipoDep   Boolean
+  esConsumoInterno_tipoDep Boolean
   frecuenciaConteoDias_tipoDep Int
-  activo_tipoDep               Boolean
+  activo_tipoDep           Boolean
 
   Depositos Deposito[]
 }
@@ -47,32 +47,32 @@ model TipoDeposito {
 // Deposito
 // ----------------------------
 model Deposito {
-  id_dep        Int       @id @default(autoincrement())
-  id_tipoDep    Int
-  nombre_dep    String    @db.VarChar(80)
-  ubicacion_dep String?   @db.VarChar(120)
-  activo_dep    Boolean
-  fechaAlta_dep DateTime  @default(now())
+  id_dep          Int                @id @default(autoincrement())
+  id_tipoDep      Int
+  nombre_dep      String             @db.VarChar(80)
+  ubicacion_dep   String?            @db.VarChar(120)
+  activo_dep      Boolean
+  fechaAlta_dep   DateTime           @default(now())
 
-  TipoDeposito      TipoDeposito      @relation(fields: [id_tipoDep], references: [id_tipoDep])
+  TipoDeposito    TipoDeposito       @relation(fields: [id_tipoDep], references: [id_tipoDep])
   ProductoDepositos ProductoDeposito[]
-  Comprobantes      Comprobante[]
-  Movimientos       Movimiento[]
+  Comprobantes    Comprobante[]
+  Movimientos     Movimiento[]
 }
 
 // ----------------------------
 // ProductoDeposito
 // ----------------------------
 model ProductoDeposito {
-  id_prodDep Int @id @default(autoincrement())
+  id_prodDep              Int      @id @default(autoincrement())
 
-  id_prod Int
-  id_dep  Int
+  id_prod                 Int
+  id_dep                  Int
 
-  minimo_prodDep         Decimal   @db.Decimal(18, 3)
-  maximo_prodDep         Decimal?  @db.Decimal(18, 3)
-  loteReposicion_prodDep Decimal?  @db.Decimal(18, 3)
-  ubicacion_prodDep      String?   @db.VarChar(30)
+  minimo_prodDep          Decimal  @db.Decimal(18, 3)
+  maximo_prodDep          Decimal? @db.Decimal(18, 3)
+  loteReposicion_prodDep  Decimal? @db.Decimal(18, 3)
+  ubicacion_prodDep       String?  @db.VarChar(30)
 
   Producto Producto @relation(fields: [id_prod], references: [id_prod])
   Deposito Deposito @relation(fields: [id_dep],  references: [id_dep])
@@ -87,37 +87,39 @@ model ProductoDeposito {
 // Proveedor
 // ----------------------------
 model Proveedor {
-  id_prov        Int      @id @default(autoincrement())
-  nombre_prov    String   @db.VarChar(120)
-  cuit_prov      String   @db.VarChar(20)
-  direccion_prov String?  @db.VarChar(200)
-  telefono_prov  String?  @db.VarChar(50)
-  email_prov     String?  @db.VarChar(120)
-  activo_prov    Boolean  @default(true)
-  fechaAlta_prov DateTime @default(now())
+  id_prov         Int            @id @default(autoincrement())
+  nombre_prov     String         @db.VarChar(120)
+  cuit_prov       String         @db.VarChar(20)
+  direccion_prov  String?        @db.VarChar(200)
+  telefono_prov   String?        @db.VarChar(50)
+  email_prov      String?        @db.VarChar(120)
+  activo_prov     Boolean        @default(true)
+  fechaAlta_prov  DateTime       @default(now())
 
   Comprobantes Comprobante[]
+  Pagos        Pago[] // <-- RELACIÓN AÑADIDA
 }
 
 // ----------------------------
 // FormaPago
 // ----------------------------
 model FormaPago {
-  id_fp   Int     @id @default(autoincrement())
-  nombre  String  @db.VarChar(80)   // Efectivo, Transferencia, Cheque, etc.
-  activo  Boolean @default(true)
+  id_fp       Int           @id @default(autoincrement())
+  nombre      String        @db.VarChar(80) // Efectivo, Transferencia, Cheque, etc.
+  activo      Boolean       @default(true)
 
   Comprobantes Comprobante[]
+  Pagos        Pago[] // <-- RELACIÓN AÑADIDA
 }
 
 // ----------------------------
 // TipoMovimiento (Entrada / Salida)
 // ----------------------------
 model TipoMovimiento {
-  id_tipoMov Int     @id @default(autoincrement())
-  nombre     String  @db.VarChar(60)   // Entrada, Salida
-  direccion  String  @db.Char(3)       // IN | OUT
-  activo     Boolean @default(true)
+  id_tipoMov Int      @id @default(autoincrement())
+  nombre     String   @db.VarChar(60) // Entrada, Salida
+  direccion  String   @db.Char(3)     // IN | OUT
+  activo     Boolean  @default(true)
 
   Movimientos Movimiento[]
 }
@@ -126,16 +128,16 @@ model TipoMovimiento {
 // Movimiento (Encabezado)
 // ----------------------------
 model Movimiento {
-  id_mov       Int      @id @default(autoincrement())
-  id_tipoMov   Int
-  id_tipoComp  Int?     // referencia opcional al tipo de comprobante
-  fecha_mov    DateTime @default(now())
-  id_dep       Int      // depósito afectado
-  observacion  String?  @db.VarChar(250)
+  id_mov        Int             @id @default(autoincrement())
+  id_tipoMov    Int
+  id_tipoComp   Int?            // referencia opcional al tipo de comprobante
+  fecha_mov     DateTime        @default(now())
+  id_dep        Int             // depósito afectado
+  observacion   String?         @db.VarChar(250)
 
-  TipoMovimiento  TipoMovimiento   @relation(fields: [id_tipoMov], references: [id_tipoMov])
-  TipoComprobante TipoComprobante? @relation(fields: [id_tipoComp], references: [id_tipoComp])
-  Deposito        Deposito         @relation(fields: [id_dep], references: [id_dep])
+  TipoMovimiento  TipoMovimiento    @relation(fields: [id_tipoMov], references: [id_tipoMov])
+  TipoComprobante TipoComprobante?  @relation(fields: [id_tipoComp], references: [id_tipoComp])
+  Deposito        Deposito          @relation(fields: [id_dep], references: [id_dep])
 
   Detalles DetalleMovimiento[]
 
@@ -148,10 +150,10 @@ model Movimiento {
 // DetalleMovimiento
 // ----------------------------
 model DetalleMovimiento {
-  id_detMov   Int     @id @default(autoincrement())
-  id_mov      Int
-  id_prodDep  Int
-  cantidad    Decimal @db.Decimal(18, 3)
+  id_detMov    Int      @id @default(autoincrement())
+  id_mov       Int
+  id_prodDep   Int
+  cantidad     Decimal  @db.Decimal(18, 3)
 
   Movimiento       Movimiento       @relation(fields: [id_mov], references: [id_mov])
   ProductoDeposito ProductoDeposito @relation(fields: [id_prodDep], references: [id_prodDep])
@@ -164,12 +166,12 @@ model DetalleMovimiento {
 // TipoComprobante
 // ----------------------------
 model TipoComprobante {
-  id_tipoComp Int     @id @default(autoincrement())
-  codigo      String  @db.VarChar(10)   // OC, FAC, REM, AJU, CON
-  nombre      String  @db.VarChar(80)
-  descripcion String? @db.VarChar(200)
-  afectaStock Boolean @default(false)
-  activo      Boolean @default(true)
+  id_tipoComp Int       @id @default(autoincrement())
+  codigo      String    @db.VarChar(10) // OC, FAC, REM, AJU, CON
+  nombre      String    @db.VarChar(80)
+  descripcion String?   @db.VarChar(200)
+  afectaStock Boolean   @default(false)
+  activo      Boolean   @default(true)
 
   Comprobantes Comprobante[]
   Movimientos  Movimiento[]
@@ -179,33 +181,34 @@ model TipoComprobante {
 // Comprobante (Encabezado)
 // ----------------------------
 model Comprobante {
-  id_comp       Int      @id @default(autoincrement())
-  id_tipoComp   Int
-  fecha         DateTime
-  estado        String   @db.VarChar(20)   // BORRADOR, POSTED, PAGADO
-  id_prov       Int?
-  id_dep        Int?     // depósito relacionado si aplica
-  id_fp         Int?     // forma de pago si aplica
-  observacion   String?  @db.VarChar(250)
+  id_comp               Int                @id @default(autoincrement())
+  id_tipoComp           Int
+  fecha                 DateTime
+  estado                String             @db.VarChar(20) // BORRADOR, POSTED, PAGADO
+  id_prov               Int?
+  id_dep                Int?               // depósito relacionado si aplica
+  id_fp                 Int?               // forma de pago si aplica
+  observacion           String?            @db.VarChar(250)
 
   // Campos fiscales y de control
-  letra_comp     String   @db.Char(1)      // A, B, C, M
-  sucursal_comp  String   @db.Char(4)      // 0001
-  numero_comp    String   @db.Char(8)      // 00000001
-  total_comp     Decimal  @db.Decimal(18,2)
-  saldo_comp     Decimal  @db.Decimal(18,2)
+  letra_comp            String             @db.Char(1)     // A, B, C, M
+  sucursal_comp         String             @db.Char(4)     // 0001
+  numero_comp           String             @db.Char(8)     // 00000001
+  total_comp            Decimal            @db.Decimal(18, 2)
+  saldo_comp            Decimal            @db.Decimal(18, 2)
 
   // 🔗 Relación opcional a otro comprobante (ej: factura ↔ orden de compra/remito)
-  id_compRef    Int?
-  ComprobanteRef Comprobante? @relation("ComprobanteReferencia", fields: [id_compRef], references: [id_comp])
-  ComprobantesAsociados Comprobante[] @relation("ComprobanteReferencia")
+  id_compRef            Int?
+  ComprobanteRef        Comprobante?       @relation("ComprobanteReferencia", fields: [id_compRef], references: [id_comp])
+  ComprobantesAsociados Comprobante[]      @relation("ComprobanteReferencia")
 
-  TipoComprobante TipoComprobante @relation(fields: [id_tipoComp], references: [id_tipoComp])
-  Proveedor       Proveedor?      @relation(fields: [id_prov], references: [id_prov])
-  Deposito        Deposito?       @relation(fields: [id_dep], references: [id_dep])
-  FormaPago       FormaPago?      @relation(fields: [id_fp], references: [id_fp])
+  TipoComprobante       TipoComprobante    @relation(fields: [id_tipoComp], references: [id_tipoComp])
+  Proveedor             Proveedor?         @relation(fields: [id_prov], references: [id_prov])
+  Deposito              Deposito?          @relation(fields: [id_dep], references: [id_dep])
+  FormaPago             FormaPago?         @relation(fields: [id_fp], references: [id_fp])
 
-  Detalles DetalleComprobante[]
+  Detalles        DetalleComprobante[]
+  DetallesPagos   DetallePago[] // <-- RELACIÓN AÑADIDA: Para saber a qué pagos se imputó este comprobante
 
   @@index([id_tipoComp])
   @@index([id_prov])
@@ -218,10 +221,10 @@ model Comprobante {
 // DetalleComprobante
 // ----------------------------
 model DetalleComprobante {
-  id_det     Int     @id @default(autoincrement())
+  id_det     Int      @id @default(autoincrement())
   id_comp    Int
   id_prod    Int
-  cantidad   Decimal @db.Decimal(18, 3)
+  cantidad   Decimal  @db.Decimal(18, 3)
   precio     Decimal? @db.Decimal(18, 2)
 
   Comprobante Comprobante @relation(fields: [id_comp], references: [id_comp])
@@ -229,4 +232,47 @@ model DetalleComprobante {
 
   @@index([id_comp])
   @@index([id_prod])
+}
+
+// ============================
+// MODULOS DE PAGO (NUEVOS)
+// ============================
+
+// ----------------------------
+// Pago (Encabezado de la Transacción de Pago)
+// ----------------------------
+model Pago {
+  id_pago         Int       @id @default(autoincrement())
+  id_prov         Int       // Proveedor al que se le paga
+  id_fp           Int       // Forma de Pago (Tipo de Pago)
+  fecha_pago      DateTime  @default(now()) // Fecha de Pago
+  total_pago      Decimal   @db.Decimal(18, 2) // Total Pagado
+  observacion     String?   @db.VarChar(250)
+  
+  // Relaciones
+  Proveedor       Proveedor   @relation(fields: [id_prov], references: [id_prov])
+  FormaPago       FormaPago   @relation(fields: [id_fp], references: [id_fp])
+  
+  // Enlaces a los comprobantes que se pagan
+  DetallesPagos   DetallePago[]
+
+  @@index([id_prov])
+  @@index([id_fp])
+}
+
+// ----------------------------
+// DetallePago (Grilla de Comprobantes Pagados)
+// ----------------------------
+model DetallePago {
+  id_detPago    Int       @id @default(autoincrement())
+  id_pago       Int       // Referencia al encabezado del pago
+  id_comp       Int       // Referencia al Comprobante que se está pagando
+  monto_pagar   Decimal   @db.Decimal(18, 2) // Monto que se aplica a este comprobante
+  
+  // Relaciones
+  Pago          Pago        @relation(fields: [id_pago], references: [id_pago])
+  Comprobante   Comprobante @relation(fields: [id_comp], references: [id_comp])
+  
+  @@index([id_pago])
+  @@index([id_comp])
 }
