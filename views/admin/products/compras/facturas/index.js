@@ -10,14 +10,24 @@ const getEstadoColor = (estado) => {
   return colores[estado] || 'light';
 };
 
+// 👉 ahora solo se permite BORRADOR → EMITIDA o ANULADA
 const getTransicionesValidas = (estadoActual) => {
   const transiciones = {
     BORRADOR: ['EMITIDA', 'ANULADA'],
-    EMITIDA: ['PAGADA', 'ANULADA'],
+    EMITIDA: [],
     PAGADA: [],
     ANULADA: []
   };
   return transiciones[estadoActual] || [];
+};
+
+// 👉 helper para formato en ARS
+const formatARS = (value) => {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 2
+  }).format(Number(value) || 0);
 };
 
 module.exports = ({ facturas, proveedores, estados = [], filters, basePath }) => {
@@ -92,12 +102,13 @@ module.exports = ({ facturas, proveedores, estados = [], filters, basePath }) =>
                 <th>Estado</th>
                 <th>Forma de Pago</th>
                 <th class="has-text-right">Total</th>
+                <th class="has-text-right">Saldo</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               ${facturas.length === 0 ? `
-                <tr><td colspan="7" class="has-text-centered has-text-grey">No se encontraron facturas</td></tr>
+                <tr><td colspan="8" class="has-text-centered has-text-grey">No se encontraron facturas</td></tr>
               ` : facturas.map(f => {
                 const puedeEditar = f.estado === 'BORRADOR';
                 const transiciones = getTransicionesValidas(f.estado);
@@ -108,7 +119,8 @@ module.exports = ({ facturas, proveedores, estados = [], filters, basePath }) =>
                     <td>${f.Proveedor?.nombre_prov || 'N/A'}</td>
                     <td><span class="tag is-${getEstadoColor(f.estado)}">${f.estado}</span></td>
                     <td>${f.FormaPago?.nombre || 'N/A'}</td>
-                    <td class="has-text-right"><strong>$${Number(f.total_comp).toFixed(2)}</strong></td>
+                    <td class="has-text-right"><strong>${formatARS(f.total_comp)}</strong></td>
+                    <td class="has-text-right"><strong>${formatARS(f.saldo_comp)}</strong></td>
                     <td>
                       <div class="dropdown is-right is-up">
                         <div class="dropdown-trigger">

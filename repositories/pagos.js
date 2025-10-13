@@ -1,5 +1,3 @@
-// repositories/pagos.js
-
 const { PrismaClient } = require('../generated/prisma');
 const prisma = new PrismaClient();
 
@@ -36,8 +34,7 @@ class PagosRepository {
   }
 
   /**
-   * Obtener las facturas de un proveedor con saldo pendiente.
-   * Asumimos que las facturas son un tipo de 'Comprobante' con código 'FAC'.
+   * Obtener las facturas de un proveedor con saldo pendiente y estado EMITIDA.
    */
   async getFacturasPendientes(id_prov) {
     const tipoFactura = await prisma.tipoComprobante.findFirst({ where: { codigo: 'FAC' } });
@@ -47,7 +44,8 @@ class PagosRepository {
       where: {
         id_prov: Number(id_prov),
         id_tipoComp: tipoFactura.id_tipoComp,
-        saldo_comp: { gt: 0 }, // gt = greater than (mayor que)
+        saldo_comp: { gt: 0 },
+        estado: 'EMITIDA', // 🔹 Solo facturas emitidas
       },
       orderBy: { fecha: 'asc' },
     });
@@ -55,19 +53,18 @@ class PagosRepository {
 
   /**
    * Crear una nueva Orden de Pago.
-   * Esta es la operación más compleja.
    */
   async create(data) {
     const { id_prov, id_fp, fecha_pago, observacion, detalles } = data;
 
-    // 1. Validar que haya detalles y que el total coincida
     if (!detalles || detalles.length === 0) {
       throw new Error('Debe seleccionar al menos una factura para pagar.');
     }
+
     const total_pago = detalles.reduce((sum, item) => sum + Number(item.monto_pagar), 0);
 
     return prisma.$transaction(async (tx) => {
-      // 2. Crear el encabezado del Pago
+      // 1. Crear el encabezado del Pago
       const nuevoPago = await tx.pago.create({
         data: {
           id_prov: Number(id_prov),
@@ -78,7 +75,7 @@ class PagosRepository {
         },
       });
 
-      // 3. Iterar sobre los detalles para actualizar saldos y crear los DetallePago
+      // 2. Iterar sobre los detalles
       for (const detalle of detalles) {
         const monto = Number(detalle.monto_pagar);
         const id_comp = Number(detalle.id_comp);
@@ -87,33 +84,49 @@ class PagosRepository {
         await tx.detallePago.create({
           data: {
             id_pago: nuevoPago.id_pago,
-            id_comp: id_comp,
+            id_comp,
             monto_pagar: monto,
           },
         });
 
-        // Actualizar el saldo del Comprobante (la factura)
+        // Buscar factura actual
+        const factura = await tx.comprobante.findUnique({
+          where: { id_comp },
+        });
+
+        if (!factura) {
+          throw new Error(`Factura con ID ${id_comp} no encontrada`);
+        }
+
+        // Actualizar saldo
+        const nuevoSaldo = factura.saldo_comp - monto;
+
         await tx.comprobante.update({
-          where: { id_comp: id_comp },
+          where: { id_comp },
           data: {
-            saldo_comp: {
-              decrement: monto,
-            },
+            saldo_comp: nuevoSaldo,
+            estado: nuevoSaldo <= 0 ? 'PAGADA' : factura.estado, // 🔹 si llega a 0 => PAGADA
           },
         });
       }
+
       return nuevoPago;
     });
   }
-  
-  // --- Métodos auxiliares para los formularios ---
-  
+
+  // --- Métodos auxiliares ---
   async getActiveProveedores() {
-    return prisma.proveedor.findMany({ where: { activo_prov: true }, orderBy: { nombre_prov: 'asc' } });
+    return prisma.proveedor.findMany({
+      where: { activo_prov: true },
+      orderBy: { nombre_prov: 'asc' },
+    });
   }
 
   async getActiveFormasDePago() {
-    return prisma.formaPago.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' } });
+    return prisma.formaPago.findMany({
+      where: { activo: true },
+      orderBy: { nombre: 'asc' },
+    });
   }
 }
 
