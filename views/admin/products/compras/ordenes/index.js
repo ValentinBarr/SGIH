@@ -1,5 +1,16 @@
 const layout = require('../../layout');
 
+// Función de formato de moneda para pesos argentinos
+const formatARS = (number) => {
+  const value = Number(number) || 0;
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
+};
+
 const getEstadoColor = (estado) => {
   const colores = {
     'BORRADOR': 'warning',
@@ -136,7 +147,7 @@ module.exports = ({ ordenes, proveedores, estados = [], filters, basePath }) => 
                       ${orden.FormaPago?.nombre || 'N/A'}
                     </td>
                     <td class="has-text-right">
-                      <strong>$${Number(orden.total_comp).toFixed(2)}</strong>
+                      <strong>${formatARS(orden.total_comp)}</strong>
                     </td>
                     <td>
                       <div class="dropdown is-right is-up">

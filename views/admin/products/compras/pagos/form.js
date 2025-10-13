@@ -88,6 +88,17 @@ module.exports = ({ proveedores, formasDePago, errors }) => {
           const facturasTbody = document.getElementById('facturas-tbody');
           const totalCell = document.getElementById('total-a-pagar');
 
+          // Función de formato de moneda para pesos argentinos
+          const formatARS = (number) => {
+            const value = Number(number) || 0;
+            return new Intl.NumberFormat('es-AR', {
+              style: 'currency',
+              currency: 'ARS',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }).format(value);
+          };
+
           // 1. FUNCIÓN PARA BUSCAR FACTURAS
           async function fetchFacturas() {
             const id_prov = proveedorSelect.value;
@@ -121,8 +132,8 @@ module.exports = ({ proveedores, formasDePago, errors }) => {
                 <td><input class="factura-checkbox" type="checkbox" data-id="\${f.id_comp}"></td>
                 <td>\${f.letra_comp} \${f.sucursal_comp}-\${f.numero_comp}</td>
                 <td>\${new Date(f.fecha).toLocaleDateString('es-AR')}</td>
-                <td class="has-text-right">$ \${Number(f.total_comp).toFixed(2)}</td>
-                <td class="has-text-right">$ \${Number(f.saldo_comp).toFixed(2)}</td>
+                <td class="has-text-right">\${formatARS(f.total_comp)}</td>
+                <td class="has-text-right">\${formatARS(f.saldo_comp)}</td>
                 <td>
                   <input 
                     class="input is-small monto-a-pagar" 
@@ -145,7 +156,7 @@ module.exports = ({ proveedores, formasDePago, errors }) => {
             facturasTbody.querySelectorAll('.monto-a-pagar:not(:disabled)').forEach(input => {
               total += parseFloat(input.value) || 0;
             });
-            totalCell.textContent = '$' + total.toFixed(2);
+            totalCell.textContent = formatARS(total);
           }
 
           // --- EVENT LISTENERS (LOS "MOTORES" DE LA PÁGINA) ---
