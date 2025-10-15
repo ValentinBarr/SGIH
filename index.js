@@ -38,7 +38,7 @@ app.use((req, res, next) => {
 
 // Rutas Generales
 app.use(authRouter);
-app.use(inicioRouter);
+app.use(inicioRouter); // <-- Usamos el router de inicio para la ruta principal
 app.use(posRouter);
 
 // Rutas de Módulo Inventario

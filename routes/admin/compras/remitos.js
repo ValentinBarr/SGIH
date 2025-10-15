@@ -209,10 +209,10 @@ router.post('/compras/remitos/:id/estado', async (req, res) => {
 
   try {
     await RemitosRepo.changeEstado(id, nuevo_estado);
-    res.redirect('/compras/remitos?success=estado_cambiado');
+    res.redirect(`/compras/remitos?ok=toggled`);
   } catch (error) {
     console.error('❌ Error al cambiar estado:', error);
-    res.redirect(`/compras/remitos?error=${encodeURIComponent(error.message)}`);
+    res.redirect(`/compras/remitos/${id}?error=${encodeURIComponent(error.message)}`);
   }
 });
 

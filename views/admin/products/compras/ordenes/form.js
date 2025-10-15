@@ -171,16 +171,27 @@ module.exports = ({ mode, orden, proveedores, productos = [], formasPago = [], e
           const addBtn = document.getElementById('add-row-btn');
           const totalCell = document.getElementById('total-cell');
 
+          // Función de formato de moneda para pesos argentinos
+          const formatARS = (number) => {
+            const value = Number(number) || 0;
+            return new Intl.NumberFormat('es-AR', {
+              style: 'currency',
+              currency: 'ARS',
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            }).format(value);
+          };
+
           function updateTotals() {
             let grandTotal = 0;
             tbody.querySelectorAll('.detail-row').forEach(row => {
               const cantidad = parseFloat(row.querySelector('.cantidad-input')?.value) || 0;
               const precio = parseFloat(row.querySelector('.precio-input')?.value) || 0;
               const subtotal = cantidad * precio;
-              row.querySelector('.subtotal-cell').textContent = '$' + subtotal.toFixed(2);
+              row.querySelector('.subtotal-cell').textContent = formatARS(subtotal);
               grandTotal += subtotal;
             });
-            totalCell.textContent = '$' + grandTotal.toFixed(2);
+            totalCell.textContent = formatARS(grandTotal);
           }
 
           // ➕ Agregar fila

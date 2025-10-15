@@ -7,6 +7,7 @@ const { PagosRepo } = require('../../../repositories/pagos.js');
 // ✅ Conectar las vistas
 const pagosTemplate = require('../../../views/admin/products/compras/pagos/index.js');
 const formTemplate = require('../../../views/admin/products/compras/pagos/form.js');
+const detailTemplate = require('../../../views/admin/products/compras/pagos/detail.js');
 
 // LISTAR ÓRDENES DE PAGO
 router.get('/compras/pagos', async (req, res) => {
@@ -26,6 +27,18 @@ router.get('/compras/pagos/new', async (req, res) => {
     res.send(formTemplate({ proveedores, formasDePago }));
   } catch (error) {
     console.error("Error al cargar formulario de pago:", error);
+    res.status(500).send("Error del servidor");
+  }
+});
+
+// MOSTRAR DETALLE DE UNA ORDEN DE PAGO
+router.get('/compras/pagos/:id', async (req, res) => {
+  try {
+    const pago = await PagosRepo.getById(req.params.id);
+    if (!pago) return res.status(404).send('Orden de pago no encontrada');
+    res.send(detailTemplate({ pago }));
+  } catch (error) {
+    console.error("Error al cargar detalle de pago:", error);
     res.status(500).send("Error del servidor");
   }
 });

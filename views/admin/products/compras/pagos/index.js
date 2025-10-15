@@ -2,6 +2,17 @@
 
 const layout = require('../../layout');
 
+// Función de formato de moneda para pesos argentinos
+const formatARS = (number) => {
+  const value = Number(number) || 0;
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
+};
+
 module.exports = ({ pagos, proveedores, filters }) => {
   const renderRows = pagos.map(pago => `
     <tr>
@@ -9,7 +20,7 @@ module.exports = ({ pagos, proveedores, filters }) => {
       <td>${new Date(pago.fecha_pago).toLocaleDateString('es-AR')}</td>
       <td>${pago.Proveedor.nombre_prov}</td>
       <td>${pago.FormaPago.nombre}</td>
-      <td class="has-text-right has-text-weight-bold">$${Number(pago.total_pago).toFixed(2)}</td>
+      <td class="has-text-right has-text-weight-bold">${formatARS(pago.total_pago)}</td>
       <td>
         <a href="/compras/pagos/${pago.id_pago}" class="button is-small is-info is-light">Ver Detalle</a>
       </td>

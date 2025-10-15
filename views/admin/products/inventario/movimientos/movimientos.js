@@ -4,7 +4,7 @@ module.exports = ({ basePath, filters = {}, movimientos = [], productos = [] }) 
   return layout({
     content: `
 <section class="section">
-  <h1 class="title is-3">📑 Movimientos</h1>
+  <h1 class="title is-3">Movimientos</h1>
 
   <!-- FILTROS -->
   <form method="GET" action="${basePath}" class="box mb-5">

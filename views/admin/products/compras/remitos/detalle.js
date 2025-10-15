@@ -1,6 +1,18 @@
 // views/admin/products/compras/remitos/detalle.js
 const layout = require('../../layout');
 
+// Función de formato de moneda para pesos argentinos
+const formatARS = (number) => {
+    const value = Number(number);
+    const formatter = new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: 'ARS', 
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+    return formatter.format(value);
+};
+
 const getEstadoColor = (estado) => {
   const colores = { BORRADOR: 'is-light', PENDIENTE: 'is-info', RECIBIDO: 'is-success', ANULADO: 'is-danger' };
   return colores[estado] || 'is-dark';
@@ -12,8 +24,8 @@ module.exports = ({ remito, transicionesValidas = [], puedeEditar }) => {
       <td>${det.Producto.id_prod}</td>
       <td>${det.Producto.nombre_prod}</td>
       <td class="has-text-right">${Number(det.cantidad).toFixed(3)}</td>
-      <td class="has-text-right">$${Number(det.precio).toFixed(2)}</td>
-      <td class="has-text-right">$${(Number(det.cantidad) * Number(det.precio)).toFixed(2)}</td>
+      <td class="has-text-right">${formatARS(det.precio)}</td>
+      <td class="has-text-right">${formatARS(Number(det.cantidad) * Number(det.precio))}</td>
     </tr>
   `).join('');
 
@@ -36,7 +48,9 @@ module.exports = ({ remito, transicionesValidas = [], puedeEditar }) => {
           <div class="columns">
             <div class="column"><strong>Fecha:</strong> ${new Date(remito.fecha).toLocaleDateString('es-AR')}</div>
             <div class="column"><strong>Forma de Pago:</strong> ${remito.FormaPago?.nombre || 'N/A'}</div>
-            <div class="column"><strong>Total:</strong> <span class="has-text-weight-bold is-size-5">$${Number(remito.total_comp).toFixed(2)}</span></div>
+            <div class="column"><strong>Total:</strong> 
+              <span class="has-text-weight-bold is-size-5">${formatARS(remito.total_comp)}</span>
+            </div>
           </div>
           ${remito.observacion ? `<p><strong>Observaciones:</strong> ${remito.observacion}</p>` : ''}
         </div>
