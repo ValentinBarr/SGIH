@@ -38,7 +38,7 @@ router.get('/inventarios/depositos/:id', async (req, res) => {
     const { grid, total, pages } = await Repo.getStockGrid(depId, page, 10);
 
     // Movimientos (entradas y salidas)
-    const movimientos = await Repo.getMovimientos(depId, 20);
+    const movimientos = await Repo.getMovimientos(depId, 20); // 👈 El emoji estaba en la vista que usa esto
 
     // Otros depósitos (para transferencias)
     const depositos = await Repo.getDepositosActivos();

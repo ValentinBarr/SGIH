@@ -22,7 +22,9 @@ module.exports = ({ proveedores = [], filters = {}, basePath = '/compras/proveed
         <button class="button is-small ${p.activo_prov ? 'is-warning' : 'is-success'} is-light is-rounded js-open-toggle" 
                 data-id="${p.id_prov}" 
                 data-name="${p.nombre_prov}" 
-                data-action="${p.activo_prov ? 'desactivar' : 'activar'}">
+                data-action="${p.activo_prov ? 'desactivar' : 'activar'}"
+                data-entity="el proveedor"
+                data-basepath="${basePath}">
           ${p.activo_prov ? 'Desactivar' : 'Activar'}
         </button>
       </td>
@@ -36,12 +38,16 @@ module.exports = ({ proveedores = [], filters = {}, basePath = '/compras/proveed
       ${f.ok === 'updated' ? `<div class="notification is-success">✅ Proveedor actualizado</div>` : ''}
       ${f.ok === 'toggled' ? `<div class="notification is-success">✅ Estado actualizado</div>` : ''}
 
-      <div class="inventory-toolbar">
-        <div style="flex: 1"></div>
-        <a href="/compras/proveedores/new" class="btn btn--primary">
-          <span class="icon"><i class="fas fa-plus"></i></span>
-          Nuevo Proveedor
-        </a>
+      <div class="level">
+        <div class="level-left">
+          <h1 class="title">Proveedores</h1>
+        </div>
+        <div class="level-right">
+          <a href="/compras/proveedores/new" class="button is-primary">
+            <span class="icon is-small"><i class="fas fa-plus"></i></span>
+            <span>Nuevo Proveedor</span>
+          </a>
+        </div>
       </div>
 
       <form method="GET" action="${basePath}" class="filters-bar">
@@ -107,37 +113,7 @@ module.exports = ({ proveedores = [], filters = {}, basePath = '/compras/proveed
       </div>
     </div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const modal = document.getElementById('toggle-modal');
-      const msg = document.getElementById('toggle-msg');
-      const form = document.getElementById('toggle-form');
-      const btn = document.getElementById('toggle-btn');
-
-      document.querySelectorAll('.js-open-toggle').forEach(el => {
-        el.addEventListener('click', () => {
-          const id = el.dataset.id;
-          const name = el.dataset.name;
-          const action = el.dataset.action;
-
-          msg.textContent = '⚠️ ¿Seguro que deseas ' + action + ' el proveedor #' + id + ' (' + name + ')?';
-          form.action = '/compras/proveedores/' + id + '/toggle';
-
-          if (action === 'desactivar') {
-            btn.className = 'button is-warning';
-            btn.textContent = 'Desactivar';
-          } else {
-            btn.className = 'button is-success';
-            btn.textContent = 'Activar';
-          }
-          modal.classList.add('is-active');
-        });
-      });
-      document.querySelectorAll('.js-close-modal').forEach(b => {
-        b.addEventListener('click', () => modal.classList.remove('is-active'));
-      });
-    });
-    </script>
+    <script src="/js/modal-toggle.js" defer></script>
     `
   });
 };

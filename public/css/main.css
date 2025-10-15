@@ -55,6 +55,15 @@ body{
 .sidebar__link:hover{ background:var(--bg-hover); transform:translateX(2px); }
 .sidebar__icon{ display:inline-grid; place-items:center; font-size:18px; }
 .sidebar__label{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sidebar__chevron { transition: opacity .2s; }
+
+/* Divisor de sección (ej. "Inventarios") */
+.sidebar__divider {
+  display: grid;
+  grid-template-columns: 28px 1fr auto; /* Icono | Label | Chevron */
+  align-items: center;
+  gap: 10px; padding: 10px 12px;
+}
 
 /* Activo */
 .sidebar__link.is-active,
@@ -78,10 +87,27 @@ body{
 .page{ padding:24px; }
 
 /* Colapsado (desktop) */
-html.sidebar-collapsed .layout{ grid-template-columns:var(--sidebar-w-collapsed) 1fr; }
-html.sidebar-collapsed .sidebar{ width:var(--sidebar-w-collapsed); }
-html.sidebar-collapsed .sidebar__brand,
-html.sidebar-collapsed .sidebar__label{ opacity:0; pointer-events:none; width:0; }
+body.sidebar-collapsed .layout { grid-template-columns: var(--sidebar-w-collapsed) 1fr; }
+body.sidebar-collapsed .sidebar { width: var(--sidebar-w-collapsed); }
+
+body.sidebar-collapsed .sidebar__brand,
+body.sidebar-collapsed .sidebar__label,
+body.sidebar-collapsed .sidebar__chevron {
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  display: none; /* Asegura que no ocupe espacio */
+}
+
+body.sidebar-collapsed .sidebar__link,
+body.sidebar-collapsed .sidebar__divider {
+  grid-template-columns: 1fr; /* El icono ocupa todo el espacio disponible */
+}
+
+/* Ocultar submenús cuando el sidebar está colapsado */
+body.sidebar-collapsed .sidebar__submenu {
+  display: none;
+}
 
 /* Mobile drawer */
 @media (max-width:900px){
@@ -100,9 +126,6 @@ html.sidebar-collapsed .sidebar__label{ opacity:0; pointer-events:none; width:0;
 }
 
 /* Inventarios: grupo con chevron y submenu */
-.sidebar__group { display:flex; align-items:center; gap:8px; }
-.sidebar__link--parent { flex:1; }
-
 .sidebar__chevron {
   background:none; border:0; color:#94a3b8; cursor:pointer;
   font-size:18px; line-height:1; transform:rotate(0deg); transition:transform .15s ease;
@@ -119,12 +142,7 @@ html.sidebar-collapsed .sidebar__label{ opacity:0; pointer-events:none; width:0;
 
 /* Grupo Inventarios */
 /* ahora: link y chevron en 2 columnas; el UL ocupa toda la fila de abajo */
-.sidebar__group{
-  display:grid;
-  grid-template-columns: 1fr auto; /* texto | chevron */
-  align-items:center;
-  gap:8px;
-}
+.sidebar__group { display: block; }
 
 /* el submenú baja y toma todo el ancho del grupo */
 .sidebar__submenu{
@@ -135,7 +153,6 @@ html.sidebar-collapsed .sidebar__label{ opacity:0; pointer-events:none; width:0;
   display:grid;
   gap:6px;
 }
-.sidebar__link--parent{flex:1;}
 
 .sidebar__chevron{
   background:none;border:0;color:#94a3b8;cursor:pointer;
