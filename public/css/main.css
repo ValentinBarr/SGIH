@@ -269,3 +269,5 @@ body.sidebar-collapsed .sidebar__submenu {
 @media (max-width: 980px){
   .filters-bar{ grid-template-columns: 1fr 1fr; }
 }
+
+
