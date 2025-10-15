@@ -252,3 +252,5 @@ html.sidebar-collapsed .sidebar__label{ opacity:0; pointer-events:none; width:0;
 @media (max-width: 980px){
   .filters-bar{ grid-template-columns: 1fr 1fr; }
 }
+
+
