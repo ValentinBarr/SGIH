@@ -1,4 +1,4 @@
-const layout = require('../layout'); // Ajusta la ruta a tu layout
+const layout = require('../layout');
 const { format, differenceInDays } = require('date-fns');
 const { es } = require('date-fns/locale');
 
@@ -37,21 +37,36 @@ const buildPageLink = (query, page) => {
   return `?${new URLSearchParams(newQuery)}`;
 };
 
+/**
+  * Calcula el número de noches
+  */
+const calcNoches = (checkIn, checkOut) => {
+  const noches = differenceInDays(new Date(checkOut), new Date(checkIn));
+  return noches <= 0 ? 1 : noches;
+};
+
+/**
+  * Obtiene el nombre de la habitación principal de la reserva
+  */
+const getRoomName = (detalles) => {
+  return detalles?.[0]?.TipoHabitacion?.nombre || 'N/A';
+};
+
 // --- Módulo Principal de la Vista ---
 
 module.exports = ({
   reservas = [],
   tiposHabitacion = [], // Usado en filtros y modal
-  estadosReserva = [],  // Usado en filtros
-  huespedes = [],         // USADO EN MODAL
+  estadosReserva = [],  // Usado en filtros
+  huespedes = [],         // USADO EN MODAL
   query = {},
   totalPages = 1,
   currentPage = 1,
   totalReservas = 0,
 }) => {
   /**
-   * Renderiza los botones de acción según el estado de la reserva
-   */
+    * Renderiza los botones de acción según el estado de la reserva
+    */
   const renderAcciones = (res) => {
     const qParams = new URLSearchParams(query);
     const action = (url, label, style, icon) => `
@@ -115,21 +130,6 @@ module.exports = ({
           </button>
         `;
     }
-  };
-
-  /**
-   * Calcula el número de noches
-   */
-  const calcNoches = (checkIn, checkOut) => {
-    const noches = differenceInDays(new Date(checkOut), new Date(checkIn));
-    return noches <= 0 ? 1 : noches;
-  };
-
-  /**
-   * Obtiene el nombre de la habitación principal de la reserva
-   */
-  const getRoomName = (detalles) => {
-    return detalles?.[0]?.TipoHabitacion?.nombre || 'N/A';
   };
 
   return layout({
@@ -356,7 +356,7 @@ module.exports = ({
 
     <div class="modal" id="modalNuevaReserva">
       <div class="modal-background" onclick="document.getElementById('modalNuevaReserva').classList.remove('is-active')"></div>
-      <div class="modal-card">
+      <div class="modal-card" style="max-width: 680px;">
         <header class="modal-card-head has-background-primary-light">
           <p class="modal-card-title has-text-primary-dark">
             <span class="icon mr-2"><i class="fas fa-calendar-plus"></i></span>
@@ -380,15 +380,7 @@ module.exports = ({
                   <div class="select is-fullwidth is-rounded">
                     <select name="id_huesped" id="id_huesped_select" required>
                       <option value="">-- Seleccione un huésped --</option>
-                      ${huespedes
-                        .map(
-                          (h) => `
-                        <option value="${h.id_huesped}">${h.apellido}, ${
-                            h.nombre
-                          } (${h.documento || 'N/D'})</option>
-                      `
-                        )
-                        .join('')}
+                      ${huespedes.map((h) => `<option value="${h.id_huesped}">${h.apellido}, ${h.nombre} (${h.documento || 'N/D'})</option>`).join('')}
                     </select>
                   </div>
                 </div>
@@ -398,20 +390,27 @@ module.exports = ({
                   </a>
                 </div>
               </div>
-              <p class="help">Si el huésped no existe, ábrelo en una nueva pestaña. Luego deberás cerrar y reabrir este modal.</p>
+              <p class="help">Si el huésped no existe, ábrelo en una nueva pestaña.</p>
             </div>
 
             <div class="field is-grouped">
               <div class="control is-expanded">
                 <label class="label">Check-in</label>
-                <input type="date" name="fechaCheckIn" id="fechaCheckIn_new" class="input is-rounded" required>
+                <input type="date" name="fechaCheckIn" id="fechaCheckIn_new" class="input is-rounded input-calc-night input-calc-total" required>
               </div>
               <div class="control is-expanded">
                 <label class="label">Check-out</label>
-                <input type="date" name="fechaCheckOut" id="fechaCheckOut_new" class="input is-rounded" required>
+                <input type="date" name="fechaCheckOut" id="fechaCheckOut_new" class="input is-rounded input-calc-night input-calc-total" required>
               </div>
             </div>
-
+            
+            <div id="resumen_noches_wrapper" class="field has-text-weight-bold is-size-6 mt-2" style="min-height: 20px; display: none;">
+              <p class="has-text-success" id="noches_display_text">
+                <span class="icon is-small"><i class="fas fa-calendar-check"></i></span>
+                Total: <span id="resumen_noches">0</span> noches
+              </p>
+            </div>
+            
             <p class="title is-6 is-spaced mt-5">2. Habitación y Ocupantes</p>
             <hr class="mt-0 mb-4">
 
@@ -419,40 +418,45 @@ module.exports = ({
               <label class="label">Tipo de Habitación (Principal)</label>
               <div class="control">
                 <div class="select is-fullwidth is-rounded">
-                  <select name="id_tipoHab" required>
+                  <select name="id_tipoHab" id="id_tipoHab_select" class="input-calc-total" required>
                     <option value="">-- Seleccione un tipo --</option>
-                    ${tiposHabitacion
-                      .map(
-                        (t) => `
-                        <option value="${t.id_tipoHab}">${t.nombre}</option>
-                      `
-                      )
-                      .join('')}
+                    ${tiposHabitacion.map((t) => `<option value="${t.id_tipoHab}" data-precio="${t.precioBase}" data-capacidad="${t.capacidad}">${t.nombre} (Máx: ${t.capacidad} pers.)</option>`).join('')}
                   </select>
                 </div>
               </div>
-              <p class="help">Esto es solo para registro. La disponibilidad y capacidad no se están validando.</p>
+              <p id="resumen_capacidad_text" class="help mt-2 has-text-warning">
+                <span class="icon is-small"><i class="fas fa-exclamation-triangle"></i></span>
+                Capacidad: [N/A]
+              </p>
             </div>
 
             <div class="field is-grouped">
               <div class="control is-expanded">
                 <label class="label">Adultos</label>
-                <input type="number" name="cantAdultos" class="input is-rounded" min="1" value="1" required>
+                <input type="number" name="cantAdultos" id="cantAdultos_new" class="input is-rounded input-calc-total" min="1" value="1" required>
               </div>
               <div class="control is-expanded">
                 <label class="label">Niños</label>
-                <input type="number" name="cantNinos" class="input is-rounded" min="0" value="0" required>
+                <input type="number" name="cantNinos" id="cantNinos_new" class="input is-rounded input-calc-total" min="0" value="0" required>
               </div>
             </div>
 
-            <p class="title is-6 is-spaced mt-5">3. Pago y Detalles</p>
+            <p class="title is-6 is-spaced mt-5">3. Monto y Pago</p>
             <hr class="mt-0 mb-4">
 
-            <div class="field is-grouped">
-              <div class="control is-expanded">
-                <label class="label">Precio Total (Manual)</label>
-                <input type="number" step="0.01" name="total" class="input is-rounded" placeholder="0.00" required>
+            <div class="box has-background-warning-light p-3 mb-4">
+              <div class="level is-mobile">
+                <div class="level-left">
+                  <p class="title is-5 has-text-warning-dark mb-0">TOTAL ESTIMADO</p>
+                </div>
+                <div class="level-right">
+                  <p class="title is-5 has-text-warning-dark mb-0" id="resumen_total_calc">$0.00</p>
+                </div>
               </div>
+              <p class="help has-text-warning-dark mt-2">El precio base se calculará automáticamente.</p>
+            </div>
+
+            <div class="field is-grouped">
               <div class="control is-expanded">
                 <label class="label">Estado Inicial</label>
                 <div class="select is-fullwidth is-rounded">
@@ -461,6 +465,10 @@ module.exports = ({
                     <option value="CONFIRMADA">Confirmada</option>
                   </select>
                 </div>
+              </div>
+              <div class="control is-expanded">
+                <label class="label">Precio Total Final (Manual)</label>
+                <input type="number" step="0.01" name="total" id="total_manual_new" class="input is-rounded" placeholder="0.00" required>
               </div>
             </div>
 
