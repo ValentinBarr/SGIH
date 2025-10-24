@@ -22,6 +22,8 @@ const pagosRouter = require('./routes/admin/compras/pagos'); // <-- ✅ LÍNEA A
 const tiposHabitacionRouter = require('./routes/admin/hoteleria/tiposHabitacion.js');
 const comodidadesRouter = require('./routes/admin/hoteleria/comodidades.js');
 const habitacionesRouter = require('./routes/admin/hoteleria/habitaciones.js');
+const huespedesRouter = require('./routes/admin/hoteleria/huespedes.js');
+const reservasRouter = require('./routes/admin/hoteleria/reservas.js');
 
 
 
@@ -67,6 +69,8 @@ app.use(pagosRouter);
 app.use(tiposHabitacionRouter);
 app.use(comodidadesRouter);
 app.use(habitacionesRouter);
+app.use(huespedesRouter);
+app.use(reservasRouter);
 
 
 // Manejo de errores global
