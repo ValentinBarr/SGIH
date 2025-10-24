@@ -69,7 +69,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Inicializar todos los submenús definidos
-  ['inventarios', 'compras'].forEach(initSubmenu);
+// Inicializar todos los submenús definidos
+['inventarios', 'compras', 'hoteleria'].forEach(initSubmenu);
 
   // --- 3. LÓGICA PARA SIDEBAR EN MÓVIL (MENÚ HAMBURGUESA) ---
   const mobileToggleBtn = document.getElementById('openMobile');

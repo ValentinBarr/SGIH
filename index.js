@@ -18,6 +18,14 @@ const ordenesRouter = require('./routes/admin/compras/ordenes');
 const facturasRouter = require('./routes/admin/compras/facturas');
 const pagosRouter = require('./routes/admin/compras/pagos'); // <-- ✅ LÍNEA AÑADIDA
 
+// Rutas de Hoteleria
+const tiposHabitacionRouter = require('./routes/admin/hoteleria/tiposHabitacion.js');
+const comodidadesRouter = require('./routes/admin/hoteleria/comodidades.js');
+const habitacionesRouter = require('./routes/admin/hoteleria/habitaciones.js');
+
+
+
+
 const app = express();
 
 // IMPORTANTE: Configura el middleware ANTES de las rutas
@@ -54,7 +62,12 @@ app.use(proveedorRouter);
 app.use(remitosRouter);
 app.use(ordenesRouter);
 app.use(facturasRouter);
-app.use(pagosRouter); // <-- ✅ LÍNEA AÑADIDA
+app.use(pagosRouter);
+
+app.use(tiposHabitacionRouter);
+app.use(comodidadesRouter);
+app.use(habitacionesRouter);
+
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

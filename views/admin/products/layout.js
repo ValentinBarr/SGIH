@@ -25,6 +25,39 @@ module.exports = ({ content }) => {
         <nav id="sidebarNav" class="sidebar__nav">
           <a class="sidebar__link" href="/"><span class="sidebar__icon"><i class="fas fa-home"></i></span><span class="sidebar__label">Inicio</span></a>
 
+
+          <!-- Hotelería -->
+          <div class="sidebar__group" id="hoteleria-group">
+            <div class="sidebar__divider">
+              <span class="sidebar__icon"><i class="fas fa-bed"></i></span>
+              <span class="sidebar__label">Hotelería</span>
+              <button
+                id="hoteleria-toggle"
+                class="sidebar__chevron"
+                type="button"
+                aria-label="Expandir Hotelería"
+                aria-expanded="false"
+                aria-controls="hoteleria-sub"
+              >▸</button>
+            </div>
+
+            <ul id="hoteleria-sub" class="sidebar__submenu" hidden>
+              <li><a class="sidebar__sublink" href="/hoteleria/dashboard">Dashboard</a></li>
+              <li><a class="sidebar__sublink" href="/hoteleria/reservas">Reservas</a></li>
+              <li><a class="sidebar__sublink" href="/hoteleria/check">Check-in / Check-out</a></li>
+              <li><a class="sidebar__sublink" href="/hoteleria/huespedes">Huéspedes</a></li>
+              <li><a class="sidebar__sublink" href="/hoteleria/calendario">Calendario</a></li>
+
+              <li class="sidebar__divider">Configuración</li>              
+              <li><a class="sidebar__sublink" href="/hoteleria/habitaciones">Habitaciones</a></li>
+              <li><a class="sidebar__sublink" href="/hoteleria/tipos-habitacion">Tipos de Habitación</a></li>
+              <li><a class="sidebar__sublink" href="/hoteleria/comodidades">Comodidades</a></li>
+            </ul>
+          </div>
+
+
+
+
           <!-- Inventarios -->
           <div class="sidebar__group" id="inventarios-group">
             <div class="sidebar__divider">
@@ -87,6 +120,12 @@ module.exports = ({ content }) => {
     </div>
 
     <script src="/js/sidebar.js" defer></script>
+    <script src="https://unpkg.com/htmx.org@1.9.11" 
+          integrity="sha384-0gxUXCCR8yv9FM2b+U3FDbsKthK766AXIsEaDQgCfwDwFstYVoT2HHGTEFxwdMxW" 
+          crossorigin="anonymous"></script>
+          
+  </body>
+</html>
   </body>
   </html>
   `;
