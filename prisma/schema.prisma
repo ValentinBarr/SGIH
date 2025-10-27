@@ -287,34 +287,37 @@ model DetallePago {
 
 
 
+// ============================
+// MODELO SIMPLIFICADO
+// ============================
+
 // ==========================================
 // 1. TIPOS DE HABITACIÓN (Configuración)
 // ==========================================
 model TipoHabitacion {
   id_tipoHab      Int       @id @default(autoincrement())
-  nombre          String    @db.VarChar(100)      // Simple, Doble, Suite
+  nombre          String    @db.VarChar(100)
   descripcion     String?   @db.Text
-  capacidad       Int                             // Personas máximas
-  precioBase      Decimal   @db.Decimal(10,2)     // Precio por noche
+  capacidad       Int
+  precioBase      Decimal   @db.Decimal(10,2)
   activo          Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   
   Habitaciones    Habitacion[]
-  DetallesReserva DetalleReserva[]
-  Comodidades     TipoHabitacionComodidad[]  // 🆕 Relación con comodidades
+  Comodidades     TipoHabitacionComodidad[]
   
   @@map("tipos_habitacion")
 }
 
 // ==========================================
-// 2. COMODIDADES (Servicios/Amenities) 🆕
+// 2. COMODIDADES (Sin cambios)
 // ==========================================
 model Comodidad {
   id_comodidad    Int       @id @default(autoincrement())
-  nombre          String    @db.VarChar(100)           // Wi-Fi, TV Cable, etc.
-  icono           String?   @db.VarChar(50)            // 📶, 📺, ❄️
-  categoria       CategoriaComodidad @default(OTROS)   // Para agrupar
+  nombre          String    @db.VarChar(100)
+  icono           String?   @db.VarChar(50)
+  categoria       CategoriaComodidad @default(OTROS)
   descripcion     String?   @db.VarChar(250)
   activo          Boolean   @default(true)
   createdAt       DateTime  @default(now())
@@ -324,18 +327,14 @@ model Comodidad {
   @@map("comodidades")
 }
 
-// Enum para categorías
 enum CategoriaComodidad {
-  BASICO           // Wi-Fi, Aire, Calefacción
-  ENTRETENIMIENTO  // TV, Netflix, Consola
-  BANIO            // Jacuzzi, Bañera, Secador
-  SERVICIO         // Room Service, Desayuno, Minibar
+  BASICO
+  ENTRETENIMIENTO
+  BANIO
+  SERVICIO
   OTROS
 }
 
-// ==========================================
-// 3. RELACIÓN N:M (Tipo Habitación - Comodidades) 🆕
-// ==========================================
 model TipoHabitacionComodidad {
   id_tipoHab      Int
   id_comodidad    Int
@@ -348,11 +347,11 @@ model TipoHabitacionComodidad {
 }
 
 // ==========================================
-// 4. HABITACIONES (Inventario físico)
+// 3. HABITACIONES (Sin cambios)
 // ==========================================
 model Habitacion {
   id_hab          Int       @id @default(autoincrement())
-  numero          Int      @unique   // 101, 102, 201...
+  numero          Int       @unique
   id_tipoHab      Int
   piso            Int?
   estado          EstadoHabitacion @default(DISPONIBLE)
@@ -361,7 +360,7 @@ model Habitacion {
   updatedAt       DateTime  @updatedAt
   
   TipoHabitacion  TipoHabitacion @relation(fields: [id_tipoHab], references: [id_tipoHab])
-  Estadias        Estadia[]
+  Reservas        Reserva[]  // 🆕 Ahora Reserva apunta aquí
   
   @@index([id_tipoHab])
   @@index([estado])
@@ -376,7 +375,7 @@ enum EstadoHabitacion {
 }
 
 // ==========================================
-// 5. HUÉSPEDES (Clientes)
+// 4. HUÉSPEDES (Sin cambios)
 // ==========================================
 model Huesped {
   id_huesped      Int       @id @default(autoincrement())
@@ -389,7 +388,6 @@ model Huesped {
   updatedAt       DateTime  @updatedAt
   
   Reservas        Reserva[]
-  Estadias        Estadia[]
   
   @@index([documento])
   @@index([email])
@@ -397,27 +395,35 @@ model Huesped {
 }
 
 // ==========================================
-// 6. RESERVAS (Compromiso futuro)
+// 5. RESERVAS (SIMPLIFICADA) 🔥
 // ==========================================
 model Reserva {
   id_reserva      Int       @id @default(autoincrement())
-  codigoReserva   String    @unique @db.VarChar(20)   // RES-2025-0001
+  codigoReserva   String    @unique @db.VarChar(20)
   id_huesped      Int
+  id_hab          Int       // 🆕 Habitación específica (antes era tipo)
+  
   fechaCheckIn    DateTime  @db.Date
   fechaCheckOut   DateTime  @db.Date
   cantAdultos     Int       @default(1)
   cantNinos       Int       @default(0)
+  
   estado          EstadoReserva @default(PENDIENTE)
   total           Decimal   @db.Decimal(10,2)
   observaciones   String?   @db.Text
+  
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   
+  // Fechas reales (NULL hasta que ocurran)
+  fechaCheckInReal    DateTime?  // 🆕 Cuándo llegó realmente
+  fechaCheckOutReal   DateTime?  // 🆕 Cuándo se fue realmente
+  
   Huesped         Huesped @relation(fields: [id_huesped], references: [id_huesped])
-  DetallesReserva DetalleReserva[]
-  Estadias        Estadia[]
+  Habitacion      Habitacion @relation(fields: [id_hab], references: [id_hab])  // 🆕
   
   @@index([id_huesped])
+  @@index([id_hab])       // 🆕
   @@index([fechaCheckIn])
   @@index([estado])
   @@map("reservas")
@@ -429,43 +435,4 @@ enum EstadoReserva {
   CHECKED_IN
   CHECKED_OUT
   CANCELADA
-}
-
-// ==========================================
-// 7. DETALLE RESERVA (Precio por noche)
-// ==========================================
-model DetalleReserva {
-  id_detReserva   Int       @id @default(autoincrement())
-  id_reserva      Int
-  id_tipoHab      Int
-  fechaNoche      DateTime  @db.Date
-  precioNoche     Decimal   @db.Decimal(10,2)
-  
-  Reserva         Reserva @relation(fields: [id_reserva], references: [id_reserva], onDelete: Cascade)
-  TipoHabitacion  TipoHabitacion @relation(fields: [id_tipoHab], references: [id_tipoHab])
-  
-  @@index([id_reserva])
-  @@index([fechaNoche])
-  @@map("detalles_reserva")
-}
-
-// ==========================================
-// 8. ESTADÍAS (Check-in/Check-out real)
-// ==========================================
-model Estadia {
-  id_estadia      Int       @id @default(autoincrement())
-  id_hab          Int
-  id_huesped      Int
-  id_reserva      Int?                          // NULL si es walk-in
-  fechaCheckIn    DateTime  @default(now())
-  fechaCheckOut   DateTime?                     // NULL hasta checkout
-  
-  Habitacion      Habitacion @relation(fields: [id_hab], references: [id_hab])
-  Huesped         Huesped @relation(fields: [id_huesped], references: [id_huesped])
-  Reserva         Reserva? @relation(fields: [id_reserva], references: [id_reserva])
-  
-  @@index([id_hab])
-  @@index([id_huesped])
-  @@index([id_reserva])
-  @@map("estadias")
 }

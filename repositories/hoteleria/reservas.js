@@ -1,6 +1,6 @@
 const { PrismaClient, EstadoReserva } = require('../../generated/prisma');
 const prisma = new PrismaClient();
-const { differenceInDays } = require('date-fns');
+const { differenceInDays, format } = require('date-fns'); // Se agrega format para código de reserva
 
 const PAGE_SIZE = 10;
 
@@ -16,8 +16,12 @@ class ReservasRepository {
         return noches > 0 ? noches : 0;
     }
 
+    // ====================================================================
+    // MÉTODOS DE LECTURA Y FILTROS
+    // ====================================================================
+
     /**
-     * Obtiene todas las reservas con filtros y paginación
+     * Obtiene todas las reservas con filtros y paginación (Ajustado al nuevo modelo Habitacion)
      */
     async getAll({ q, page = 1, estado, id_tipoHab, fechaDesde, fechaHasta } = {}) {
         const currentPage = Number(page) || 1;
@@ -38,10 +42,10 @@ class ReservasRepository {
             where.estado = estado;
         }
 
-        // 3. Filtro de Tipo de Habitación
+        // 3. Filtro de Tipo de Habitación (Ajustado a la relación Reserva -> Habitacion -> TipoHabitacion)
         if (id_tipoHab) {
-            where.DetallesReserva = {
-                some: { id_tipoHab: Number(id_tipoHab) },
+            where.Habitacion = {
+                id_tipoHab: Number(id_tipoHab),
             };
         }
 
@@ -62,11 +66,10 @@ class ReservasRepository {
             where,
             include: {
                 Huesped: true,
-                DetallesReserva: {
-                    take: 1, // Solo necesitamos el primer detalle para el nombre
+                Habitacion: { 
                     include: {
-                        TipoHabitacion: true,
-                    },
+                        TipoHabitacion: true, 
+                    }
                 },
             },
             orderBy: { fechaCheckIn: 'desc' },
@@ -78,7 +81,7 @@ class ReservasRepository {
     }
 
     /**
-     * Obtiene los datos necesarios para los filtros Y el modal de nueva reserva
+     * Obtiene los datos necesarios para los filtros y la nueva reserva
      */
     async getFormData() {
         const tiposHabitacion = await prisma.tipoHabitacion.findMany({
@@ -101,119 +104,145 @@ class ReservasRepository {
     async getById(id_reserva) {
         return prisma.reserva.findUnique({
             where: { id_reserva: Number(id_reserva) },
-            include: { Huesped: true },
+            include: { Huesped: true, Habitacion: true },
+        });
+    }
+    
+    // ====================================================================
+    // MÉTODOS ESTÁTICOS DE DISPONIBILIDAD Y HUÉSPED (Usados por API)
+    // ====================================================================
+
+    /**
+     * Busca habitaciones disponibles para el rango de fechas y capacidad dados.
+     */
+    static async findAvailableRooms(checkIn, checkOut, adultos, ninos) {
+        const checkInDate = new Date(checkIn);
+        const checkOutDate = new Date(checkOut);
+        const capacidadTotal = parseInt(adultos) + parseInt(ninos);
+        
+        if (checkOutDate <= checkInDate || capacidadTotal <= 0 || isNaN(capacidadTotal)) {
+            return [];
+        }
+
+        // --- 1. IDs de Habitaciones Ocupadas (Lógica de Solapamiento) ---
+        const habitacionesOcupadas = await prisma.reserva.findMany({
+            where: {
+                estado: { notIn : [EstadoReserva.CHECKED_OUT, EstadoReserva.CANCELADA] }, 
+                fechaCheckIn: { lt: checkOutDate }, 
+                fechaCheckOut: { gt: checkInDate }, 
+            },
+            select: { id_hab: true },
+        });
+
+        const idsOcupadas = habitacionesOcupadas.map(r => r.id_hab);
+
+        // --- 2. Habitaciones Disponibles con Capacidad ---
+        return prisma.habitacion.findMany({
+            where: {
+                id_hab: { notIn: idsOcupadas }, 
+                estado: { in: ['DISPONIBLE', 'LIMPIEZA'] }, 
+                activo: true,
+                TipoHabitacion: {
+                    capacidad: { gte: capacidadTotal }
+                }
+            },
+            include: { 
+                TipoHabitacion: true 
+            },
+            orderBy: [{ id_tipoHab: 'asc' }, { numero: 'asc' }]
         });
     }
 
     /**
-     * Crea una nueva reserva (carga manual) con VALIDACIÓN ATÓMICA.
+     * Crea un nuevo Huésped (para el modal).
+     */
+    static async createHuesped(data) {
+        const { nombre, apellido, documento, telefono, email } = data;
+        
+        return prisma.huesped.create({
+            data: {
+                nombre,
+                apellido,
+                documento: documento || null,
+                telefono: telefono || null,
+                email: email || null,
+            }
+        });
+    }
+
+
+    // ====================================================================
+    // MÉTODOS DE ESCRITURA (Transaccionales)
+    // ====================================================================
+
+    /**
+     * Crea una nueva reserva (simplificada con id_hab).
      */
     async create(data) {
+        const {
+            id_huesped, id_hab, fechaCheckIn, fechaCheckOut, 
+            cantAdultos, cantNinos, estado, total, observaciones 
+        } = data;
+
+        const checkInDate = new Date(fechaCheckIn);
+        const checkOutDate = new Date(fechaCheckOut);
+        
+        // 💡 1. RE-VERIFICACIÓN CRÍTICA DE DISPONIBILIDAD (CRÍTICO)
+        // Se llama al método estático dentro de la instancia:
+        const habitacionesDisponibles = await ReservasRepository.findAvailableRooms(
+            fechaCheckIn, 
+            fechaCheckOut, 
+            cantAdultos, 
+            cantNinos
+        );
+
+        if (!habitacionesDisponibles.some(h => h.id_hab === id_hab)) {
+             throw new Error("La habitación seleccionada ya no está disponible para el rango de fechas. Vuelva a verificar.");
+        }
+
+        // 💡 2. Transacción de Creación y Actualización de Habitación
         return prisma.$transaction(async (tx) => {
-            const {
-                id_huesped,
-                fechaCheckIn,
-                fechaCheckOut,
-                cantAdultos,
-                cantNinos,
-                total,
-                id_tipoHab,
-                estado,
-                observaciones,
-            } = data;
-
-            const checkInDate = new Date(fechaCheckIn);
-            const checkOutDate = new Date(fechaCheckOut);
-            const noches = this._calculateNights(fechaCheckIn, fechaCheckOut);
             
-            // 💡 1. VALIDACIÓN ATÓMICA DE DISPONIBILIDAD
-            if (noches > 0) {
-                // A. Buscar si existe alguna reserva PENDIENTE/CONFIRMADA/CHECKED_IN que se solape en CUALQUIER noche
-                const overlappingReservationsCount = await tx.detalleReserva.count({
-                    where: {
-                        id_tipoHab: Number(id_tipoHab),
-                        fechaNoche: {
-                            // Buscar cualquier fecha de noche que caiga en el rango [CheckIn, CheckOut)
-                            gte: checkInDate, 
-                            lt: checkOutDate, 
-                        },
-                        // Asegurarse de que la reserva asociada no esté CANCELADA/CHECKED_OUT
-                        Reserva: {
-                            estado: {
-                                in: [EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA, EstadoReserva.CHECKED_IN]
-                            }
-                        }
-                    },
-                });
-                
-                // B. Obtener el inventario físico total de habitaciones de este tipo.
-                const totalHabitacionesTipo = await tx.habitacion.count({ 
-                    where: { 
-                        id_tipoHab: Number(id_tipoHab),
-                        activo: true,
-                        estado: { not: EstadoReserva.MANTENIMIENTO }
-                    } 
-                });
+            const codigoReserva = 'R' + format(new Date(), 'yyyyMMddHHmmss');
 
-                // C. Si la cantidad de reservas superpuestas es igual o mayor al total de habitaciones físicas, hay OVERBOOKING.
-                // Asumimos que esta reserva es de 1 habitación.
-                if (overlappingReservationsCount >= totalHabitacionesTipo) {
-                    throw new Error(`Overbooking: No hay disponibilidad para el tipo de habitación en el rango seleccionado. (Reservas solapadas: ${overlappingReservationsCount} / Total Hab: ${totalHabitacionesTipo})`);
-                }
-            }
-
-
-            // 💡 2. CREACIÓN DE LA RESERVA
-            const codigoReserva = `RES-${Date.now().toString().slice(-6)}`;
-
-            const reserva = await tx.reserva.create({
+            const newReserva = await tx.reserva.create({
                 data: {
                     codigoReserva,
-                    id_huesped: Number(id_huesped),
+                    id_huesped: id_huesped,
+                    id_hab: id_hab, 
                     fechaCheckIn: checkInDate,
                     fechaCheckOut: checkOutDate,
-                    cantAdultos: Number(cantAdultos) || 1,
-                    cantNinos: Number(cantNinos) || 0,
-                    estado: estado || EstadoReserva.PENDIENTE,
-                    total: Number(total) || 0,
+                    cantAdultos: cantAdultos,
+                    cantNinos: cantNinos,
+                    estado: estado,
+                    total: total,
                     observaciones: observaciones || null,
-                },
+                }
             });
 
-            // 💡 3. CREAR DETALLE POR CADA NOCHE
-            if (id_tipoHab && noches > 0) {
-                const detalles = [];
-                const precioNocheBase = (Number(total) / noches) || 0; // Distribución simple del precio total
-
-                for (let i = 0; i < noches; i++) {
-                    const fechaNoche = new Date(checkInDate);
-                    fechaNoche.setDate(fechaNoche.getDate() + i);
-
-                    detalles.push({
-                        id_reserva: reserva.id_reserva,
-                        id_tipoHab: Number(id_tipoHab),
-                        fechaNoche: fechaNoche,
-                        precioNoche: precioNocheBase,
-                    });
-                }
-                await tx.detalleReserva.createMany({ data: detalles });
+            // Si el estado inicial es CHECKED_IN, actualiza el estado de la habitación
+            if (estado === EstadoReserva.CHECKED_IN) {
+                await tx.habitacion.update({
+                    where: { id_hab: id_hab },
+                    data: { estado: 'OCUPADA' } 
+                });
             }
 
-            return reserva;
-        }); // Fin de la transacción
+            return newReserva;
+        }); 
     }
 
     /**
      * Actualiza una reserva (usado por el modal de edición simple)
      */
     async update(id_reserva, data) {
-        const { id_reserva: idDelBody, fechaCheckIn, fechaCheckOut, total } = data;
+        const { fechaCheckIn, fechaCheckOut, total, observaciones } = data;
         const dataToUpdate = { updatedAt: new Date() };
 
-        // Solo actualiza los campos permitidos
         if (fechaCheckIn) dataToUpdate.fechaCheckIn = new Date(fechaCheckIn);
         if (fechaCheckOut) dataToUpdate.fechaCheckOut = new Date(fechaCheckOut);
         if (total !== undefined) dataToUpdate.total = Number(total);
+        if (observaciones !== undefined) dataToUpdate.observaciones = observaciones;
 
         return prisma.reserva.update({
             where: { id_reserva: Number(id_reserva) },
@@ -225,14 +254,62 @@ class ReservasRepository {
      * Cambia el estado de una reserva (usado por los botones de acción)
      */
     async updateState(id_reserva, nuevoEstado) {
-        return prisma.reserva.update({
-            where: { id_reserva: Number(id_reserva) },
-            data: {
-                estado: nuevoEstado,
-                updatedAt: new Date(),
-            },
+        return prisma.$transaction(async (tx) => {
+            const reserva = await tx.reserva.findUnique({
+                where: { id_reserva: Number(id_reserva) },
+                select: { id_hab: true, estado: true, fechaCheckInReal: true, fechaCheckOutReal: true },
+            });
+
+            if (!reserva) {
+                throw new Error("Reserva no encontrada.");
+            }
+
+            // Actualizar la reserva
+            const updatedReserva = await tx.reserva.update({
+                where: { id_reserva: Number(id_reserva) },
+                data: {
+                    estado: nuevoEstado,
+                    updatedAt: new Date(),
+                    fechaCheckInReal: (nuevoEstado === EstadoReserva.CHECKED_IN && !reserva.fechaCheckInReal) ? new Date() : undefined,
+                    fechaCheckOutReal: (nuevoEstado === EstadoReserva.CHECKED_OUT && !reserva.fechaCheckOutReal) ? new Date() : undefined,
+                },
+            });
+
+            // Lógica de actualización de estado de la habitación (Transaccional)
+            let newHabitacionState;
+            if (nuevoEstado === EstadoReserva.CHECKED_IN) {
+                newHabitacionState = 'OCUPADA';
+            } else if (nuevoEstado === EstadoReserva.CHECKED_OUT || nuevoEstado === EstadoReserva.CANCELADA) {
+                newHabitacionState = 'LIMPIEZA'; 
+            }
+            
+            if (newHabitacionState) {
+                await tx.habitacion.update({
+                    where: { id_hab: reserva.id_hab },
+                    data: { estado: newHabitacionState },
+                });
+            }
+
+            return updatedReserva;
         });
     }
 }
 
-module.exports = new ReservasRepository();
+// ====================================================================
+// EXPORTACIÓN (SINGLETON) - Soluciona el TypeError
+// ====================================================================
+const repoInstance = new ReservasRepository();
+
+module.exports = {
+    // Métodos de instancia (que usan 'this' y por eso necesitan bind)
+    getAll: repoInstance.getAll.bind(repoInstance),
+    getFormData: repoInstance.getFormData.bind(repoInstance),
+    getById: repoInstance.getById.bind(repoInstance),
+    create: repoInstance.create.bind(repoInstance),
+    update: repoInstance.update.bind(repoInstance),
+    updateState: repoInstance.updateState.bind(repoInstance),
+
+    // Métodos estáticos (que no usan 'this' y se exportan directamente)
+    findAvailableRooms: ReservasRepository.findAvailableRooms,
+    createHuesped: ReservasRepository.createHuesped,
+};

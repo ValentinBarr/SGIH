@@ -1,266 +1,308 @@
-// js/reservas.js
 document.addEventListener('DOMContentLoaded', () => {
-    // --- MODAL DE EDICIÓN (Existente) ---
-    const modalEditar = document.getElementById('modalReserva');
+    // -------------------------------------------------------------------
+    // 1. Elementos del DOM
+    // -------------------------------------------------------------------
+    const checkInInput = document.getElementById('fechaCheckIn_new');
+    const checkOutInput = document.getElementById('fechaCheckOut_new');
+    const adultosInput = document.getElementById('cantAdultos_new');
+    const ninosInput = document.getElementById('cantNinos_new');
     
-    // (Lógica de edición se mantiene igual)
-    if (modalEditar) {
-        const formEditar = document.getElementById('formReserva');
-        const titleEditar = modalEditar.querySelector('.modal-card-title');
-        const idFieldEditar = document.getElementById('id_reserva');
-        const btnGuardarEditar = document.getElementById('btnGuardarReserva');
+    // Elementos de la columna derecha (Tarjetas)
+    const habitacionesCardsWrapper = document.getElementById('habitaciones-wrapper-cards');
+    const idHabHidden = document.getElementById('id_hab_hidden'); 
+    
+    // Elementos de resumen y Huésped
+    const nochesDisplay = document.getElementById('resumen_noches');
+    const totalCalcDisplay = document.getElementById('resumen_total_calc');
+    const hiddenTotalCalc = document.getElementById('hidden_total_calc');
+    const huespedSelect = document.getElementById('id_huesped_select');
 
-        const openModalEditar = () => modalEditar.classList.add('is-active');
+    let currentFetchController; 
+    let cachedRooms = []; // Para almacenar los datos de las habitaciones disponibles (incluye precio, etc.)
 
-        const toISODate = (dateString) => {
-            if (!dateString) return '';
-            const date = new Date(dateString);
-            date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
-            return date.toISOString().split('T')[0];
-        };
+    // -------------------------------------------------------------------
+    // 2. Helpers de Cálculo
+    // -------------------------------------------------------------------
 
-        const assignEditListeners = () => {
-            document.querySelectorAll('.btnEditarReserva').forEach((btn) => {
-                if (btn.dataset.listenerAttached) return;
-                btn.dataset.listenerAttached = true;
+    const calcNoches = (checkInStr, checkOutStr) => {
+        if (!checkInStr || !checkOutStr) return 0;
+        const checkIn = new Date(checkInStr);
+        const checkOut = new Date(checkOutStr);
+        const diffDays = Math.ceil(Math.abs(checkOut - checkIn) / (1000 * 60 * 60 * 24)); 
+        return checkOut <= checkIn ? 0 : diffDays;
+    };
 
-                btn.addEventListener('click', async () => {
-                    const id = btn.dataset.id;
-                    try {
-                        const response = await fetch(`/hoteleria/reservas/${id}/data`);
-                        if (!response.ok) throw new Error('No se pudieron cargar los datos');
-                        const data = await response.json();
-
-                        titleEditar.textContent = `Editar Reserva ${data.codigoReserva}`;
-                        formEditar.action = `/hoteleria/reservas/${id}/edit${window.location.search}`;
-                        idFieldEditar.value = data.id_reserva;
-
-                        document.getElementById('huesped_nombre').value =
-                            `${data.Huesped?.apellido}, ${data.Huesped?.nombre}`;
-                        document.getElementById('fechaCheckIn').value = toISODate(data.fechaCheckIn);
-                        document.getElementById('fechaCheckOut').value = toISODate(data.fechaCheckOut);
-                        document.getElementById('total').value = data.total;
-
-                        openModalEditar();
-                    } catch (err) {
-                        console.error(err);
-                        alert('Error al cargar datos de la reserva.');
-                    }
-                });
-            });
-        };
-
-        assignEditListeners();
-        document.body.addEventListener('htmx:afterOnLoad', assignEditListeners);
-
-        btnGuardarEditar.addEventListener('click', () => {
-            formEditar.submit();
-        });
-    }
-
-    // --- MODAL DE NUEVA RESERVA (con Validación y Cálculo) ---
-    const modalNuevo = document.getElementById('modalNuevaReserva');
-    if (modalNuevo) {
-        const formNuevo = document.getElementById('formNuevaReserva');
-        const btnAbrirNuevo = document.getElementById('btnNuevaReserva');
-        const btnGuardarNuevo = document.getElementById('btnGuardarNuevaReserva');
-        const errorBox = document.getElementById('errorNuevaReserva');
-
-        // Referencias a los campos de cálculo
-        const fechaIn = document.getElementById('fechaCheckIn_new');
-        const fechaOut = document.getElementById('fechaCheckOut_new');
-        const tipoHabSelect = document.getElementById('id_tipoHab_select');
-        const cantAdultos = document.getElementById('cantAdultos_new');
-        const cantNinos = document.getElementById('cantNinos_new');
-        const totalManual = document.getElementById('total_manual_new'); // Campo de input final
-
-        // Referencias a los displays
-        const displayNoches = document.getElementById('resumen_noches');
-        const displayNochesWrapper = document.getElementById('resumen_noches_wrapper');
-        const displayTotalCalc = document.getElementById('resumen_total_calc');
-        const displayCapacidad = document.getElementById('resumen_capacidad_text');
-        const displayDisponibilidad = document.getElementById('resumen_disponibilidad_text');
+    /**
+     * Calcula y actualiza el total en el DOM.
+     * Lee el precio base de la tarjeta seleccionada (o usa el valor por defecto si no hay selección).
+     * @param {string | undefined} precioBaseStr - El precio base de la tarjeta clickeada.
+     */
+    const calcularTotal = (precioBaseStr) => {
+        const noches = parseInt(nochesDisplay.textContent) || 0;
         
-        // Estado de validación global
-        let isAvailable = false;
-        let isCapacityOK = false;
+        // Determina el precio base: 
+        // 1. Usa el precio de la tarjeta seleccionada (si existe).
+        // 2. Si no hay una tarjeta seleccionada, usa el precio que ya está en el input hidden (por si viene de un POST fallido).
+        let precioBase = 0;
+        if (precioBaseStr) {
+            precioBase = parseFloat(precioBaseStr);
+        } else if (idHabHidden.value) {
+            // Si hay un ID seleccionado, buscamos su precio en el cache
+             const room = cachedRooms.find(r => r.id_hab == idHabHidden.value);
+             if (room) {
+                 precioBase = parseFloat(room.TipoHabitacion.precioBase || '0');
+             }
+        }
+        
+        const total = precioBase * noches;
 
-        // Función auxiliar para calcular días (igual que en el backend, sin date-fns)
-        const calculateNights = (start, end) => {
-            if (!start || !end) return 0;
-            const diffTime = new Date(end).getTime() - new Date(start).getTime();
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            return diffDays > 0 ? diffDays : 0;
-        };
+        totalCalcDisplay.textContent = `$${total.toFixed(2)}`;
+        hiddenTotalCalc.value = total.toFixed(2);
+    };
 
-        // --- FUNCIONES DE CÁLCULO Y VALIDACIÓN ---
+    const updateNoches = () => {
+        const noches = calcNoches(checkInInput.value, checkOutInput.value);
+        nochesDisplay.textContent = noches;
+        // La actualización de total se hará después de re-renderizar las tarjetas
+        return noches;
+    };
 
-        const updateCalculations = () => {
-            const inValue = fechaIn.value;
-            const outValue = fechaOut.value;
-            const selectedOption = tipoHabSelect.options[tipoHabSelect.selectedIndex];
+    // -------------------------------------------------------------------
+    // 3. Lógica de Renderizado y Disponibilidad
+    // -------------------------------------------------------------------
+
+    /**
+     * Renderiza las tarjetas usando los datos cacheados.
+     */
+    const renderRoomCards = (habitaciones) => {
+        const noches = updateNoches();
+        const ocupantes = parseInt(adultosInput.value) + parseInt(ninosInput.value);
+        const idSeleccionado = idHabHidden.value;
+        
+        if (habitaciones.length === 0 || noches === 0 || ocupantes === 0) {
+            // Mensaje si no hay habitaciones o los inputs son inválidos
+             const message = noches === 0 ? 'Defina un rango de fechas válido.' : 
+                             (ocupantes === 0 ? 'Defina al menos 1 ocupante.' : 
+                             'No hay habitaciones disponibles.');
             
-            const idTipoHab = tipoHabSelect.value;
-            const totalHuespedes = parseInt(cantAdultos.value) + parseInt(cantNinos.value);
+            return `<div class="notification is-warning is-light">${message}</div>`;
+        }
+        
+        const cards = habitaciones.map(h => {
+            const tipo = h.TipoHabitacion;
+            const precioBase = parseFloat(tipo.precioBase);
+            const totalCalculado = (precioBase * noches).toFixed(2);
+            const isSelected = h.id_hab == idSeleccionado;
+            const cardClass = isSelected ? 'is-primary is-light' : 'is-white';
+            const capacidadSuficiente = tipo.capacidad >= ocupantes;
+            const capacidadClass = capacidadSuficiente ? 'has-text-success' : 'has-text-danger';
             
-            let capacidadMax = 0;
-            let precioBase = 0;
+            // Renderizado simplificado de comodidades (Asumimos que el Repo las incluye)
+            const comodidadesHtml = tipo.Comodidades ? tipo.Comodidades.slice(0, 5).map(tc => {
+                const com = tc.Comodidad;
+                if (!com) return '';
+                const icon = getComodidadIcon(com.nombre);
+                return `<span class="tag is-light is-rounded mr-1" title="${com.nombre}"><i class="${icon}"></i></span>`;
+            }).join('') : '';
 
-            // 1. VALIDACIÓN BÁSICA DE CAMPOS
-            const noches = calculateNights(inValue, outValue);
-
-            if (noches <= 0 || !idTipoHab) {
-                displayNochesWrapper.style.display = 'none';
-                displayTotalCalc.textContent = '$0.00';
-                displayCapacidad.innerHTML = `<span class="icon is-small"><i class="fas fa-exclamation-triangle"></i></span> Capacidad: [N/A]`;
-                displayDisponibilidad.innerHTML = `<span class="icon is-small"><i class="fas fa-bed"></i></span> Seleccione fechas y tipo.`;
-                displayDisponibilidad.className = 'help mt-2 has-text-warning';
-                isAvailable = false;
-                isCapacityOK = false;
-                btnGuardarNuevo.disabled = true;
-                return;
-            }
-            
-            // Actualizar noches en la UI
-            displayNoches.textContent = noches;
-            displayNochesWrapper.style.display = 'block';
-
-            // 2. OBTENER DATOS DEL TIPO DE HABITACIÓN SELECCIONADO
-            if (selectedOption && selectedOption.dataset.precio) {
-                precioBase = parseFloat(selectedOption.dataset.precio);
-                capacidadMax = parseInt(selectedOption.dataset.capacidad);
-            }
-            
-            // 3. VALIDACIÓN DE CAPACIDAD (Local)
-            isCapacityOK = totalHuespedes <= capacidadMax;
-            const capacidadTexto = isCapacityOK
-                ? `Capacidad OK (Máx: ${capacidadMax} pers.)`
-                : `Capacidad EXCEDIDA (${totalHuespedes} > Máx: ${capacidadMax})`;
-            
-            displayCapacidad.className = 'help mt-2 ' + (isCapacityOK ? 'has-text-success' : 'has-text-danger');
-            displayCapacidad.innerHTML = `<span class="icon is-small"><i class="fas ${isCapacityOK ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i></span> ${capacidadTexto}`;
-
-
-            // 4. CÁLCULO DEL PRECIO
-            const totalCalculado = noches * precioBase;
-            displayTotalCalc.textContent = `$${totalCalculado.toFixed(2)}`;
-            
-            // Solo sobrescribir el manual si el campo está vacío o es 0
-            if (parseFloat(totalManual.value) === 0 || totalManual.value === '') {
-                 totalManual.value = totalCalculado.toFixed(2);
-            }
-
-            // Deshabilitar temporalmente mientras se consulta
-            btnGuardarNuevo.disabled = true;
-            displayDisponibilidad.className = 'help mt-2 has-text-info';
-            displayDisponibilidad.innerHTML = `<span class="icon is-small"><i class="fas fa-sync fa-spin"></i></span> Verificando disponibilidad...`;
-
-
-            // --- FETCH DE DISPONIBILIDAD ---
-            const url = `/hoteleria/reservas/disponibilidad?id_tipoHab=${idTipoHab}&fechaCheckIn=${inValue}&fechaCheckOut=${outValue}`;
-
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) throw new Error('Error de servidor al consultar disponibilidad.');
-                    return response.json();
-                })
-                .then(data => {
-                    isAvailable = data.estaDisponible;
-                    const dispTexto = isAvailable 
-                        ? `DISPONIBLE (${data.disponibles} restantes)` 
-                        : `NO DISPONIBLE (Quedan: ${data.disponibles} o menos)`;
+            return `
+                <div 
+                    class="box room-card p-4 mb-3 is-clickable ${cardClass}" 
+                    data-id="${h.id_hab}" 
+                    data-preciobase="${precioBase.toFixed(2)}"
+                >
+                    <div class="level is-mobile mb-1">
+                        <div class="level-left">
+                            <p class="title is-5 mb-0 has-text-weight-bold">
+                                HABITACIÓN ${h.numero} - ${tipo.nombre}
+                            </p>
+                        </div>
+                        <div class="level-right">
+                            ${isSelected ? '<span class="icon has-text-primary"><i class="fas fa-check-circle"></i></span>' : ''}
+                        </div>
+                    </div>
+                    <p class="subtitle is-7 has-text-grey-light mb-2">Piso ${h.piso || 'N/A'}</p>
                     
-                    const dispClass = isAvailable ? 'has-text-success' : 'has-text-danger';
-                    const dispIcon = isAvailable ? 'fa-check' : 'fa-times';
+                    <hr class="mt-2 mb-2">
+                    
+                    <div class="level is-mobile is-size-6 mb-2">
+                        <div class="level-left">
+                            <span class="icon has-text-success mr-2"><i class="fas fa-dollar-sign"></i></span>
+                            <p class="has-text-weight-semibold">Precio estimado</p>
+                        </div>
+                        <div class="level-right">
+                            <p>$${precioBase.toFixed(2)} x ${noches} = <strong class="has-text-success">$${totalCalculado}</strong></p>
+                        </div>
+                    </div>
 
-                    displayDisponibilidad.className = 'help mt-2 ' + dispClass;
-                    displayDisponibilidad.innerHTML = `<span class="icon is-small"><i class="fas ${dispIcon}"></i></span> ${dispTexto}`;
+                    <div class="content is-size-7 mb-2">
+                        <div class="tags">
+                            ${comodidadesHtml || '<span class="has-text-grey-light">Sin comodidades clave</span>'}
+                        </div>
+                    </div>
+                    
+                    <div class="is-size-7 has-text-weight-semibold ${capacidadClass}">
+                        <span class="icon mr-1"><i class="fas fa-user-friends"></i></span>
+                        Capacidad: ${tipo.capacidad} personas 
+                        ${!capacidadSuficiente ? '<strong class="has-text-danger">(Insuficiente)</strong>' : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
 
-                    // Habilitar botón solo si AMBAS condiciones son OK
-                    btnGuardarNuevo.disabled = !(isAvailable && isCapacityOK);
+        return cards;
+    };
 
-                })
-                .catch(err => {
-                    console.error("Error fetching availability:", err);
-                    displayDisponibilidad.className = 'help mt-2 has-text-danger';
-                    displayDisponibilidad.innerHTML = `<span class="icon is-small"><i class="fas fa-exclamation-circle"></i></span> Error al consultar disponibilidad.`;
-                    isAvailable = false;
-                    btnGuardarNuevo.disabled = true;
-                });
-        };
+    /**
+     * Llama a la API para obtener la disponibilidad y renderiza las tarjetas.
+     */
+    const buscarDisponibilidad = async () => {
+        const checkIn = checkInInput.value;
+        const checkOut = checkOutInput.value;
+        const adultos = adultosInput.value;
+        const ninos = ninosInput.value;
+        
+        // Muestra estado de carga si los inputs son válidos para buscar
+        if (calcNoches(checkIn, checkOut) > 0 && parseInt(adultos) + parseInt(ninos) > 0) {
+             habitacionesCardsWrapper.innerHTML = `<progress class="progress is-small is-info" max="100">Cargando...</progress>`;
+        } else {
+             // Si los inputs son inválidos, solo renderiza el mensaje de error de renderRoomCards
+             habitacionesCardsWrapper.innerHTML = renderRoomCards([]);
+             return;
+        }
 
-        // --- ASIGNACIÓN DE LISTENERS PARA CÁLCULO ---
-        const calculableInputs = formNuevo.querySelectorAll('.input-calc-total');
-        calculableInputs.forEach(input => {
-            input.addEventListener('change', updateCalculations);
-            input.addEventListener('input', updateCalculations);
+        if (currentFetchController) currentFetchController.abort();
+        currentFetchController = new AbortController();
+        const { signal } = currentFetchController;
+
+        try {
+            const url = `/hoteleria/api/disponibilidad?checkIn=${checkIn}&checkOut=${checkOut}&adultos=${adultos}&ninos=${ninos}`;
+            const response = await fetch(url, { signal });
+
+            if (!response.ok) throw new Error('Error al buscar disponibilidad');
+            
+            const data = await response.json(); 
+            
+            // Cachear la respuesta
+            cachedRooms = data.habitaciones;
+
+            // Deseleccionar si la antigua habitación ya no está disponible
+            if (idHabHidden.value && !data.habitaciones.some(h => h.id_hab == idHabHidden.value)) {
+                 idHabHidden.value = '';
+            }
+
+            // Renderizar tarjetas
+            habitacionesCardsWrapper.innerHTML = renderRoomCards(data.habitaciones);
+
+            // Recalcular el total
+            calcularTotal();
+
+        } catch (error) {
+            if (error.name === 'AbortError') return; 
+            console.error('Error de disponibilidad:', error);
+            habitacionesCardsWrapper.innerHTML = `<div class="notification is-danger is-light">Error: ${error.message}</div>`;
+            calcularTotal('');
+        }
+    };
+
+    // -------------------------------------------------------------------
+    // 4. Lógica de Selección de Tarjetas
+    // -------------------------------------------------------------------
+
+    const handleCardSelection = (e) => {
+        let card = e.target.closest('.room-card');
+        if (!card) return;
+
+        // 1. Deseleccionar todas las tarjetas
+        document.querySelectorAll('.room-card').forEach(c => {
+             c.classList.remove('is-primary', 'is-light');
+             const checkIconWrapper = c.querySelector('.level-right');
+             if (checkIconWrapper) checkIconWrapper.innerHTML = ''; // Limpia el check
         });
         
-        // --- LÓGICA DEL MODAL ---
-        const mostrarError = (mensaje) => {
-            if (errorBox) {
-                errorBox.textContent = mensaje;
-                errorBox.style.display = 'block';
-            } else {
-                alert(mensaje);
-            }
-        };
+        // 2. Seleccionar la actual
+        card.classList.add('is-primary', 'is-light');
 
-        btnAbrirNuevo.addEventListener('click', () => {
-            formNuevo.reset();
-            if (errorBox) errorBox.style.display = 'none';
-            // Inicializar cálculos al abrir (para el valor por defecto de 1 adulto)
-            setTimeout(updateCalculations, 10); 
-            modalNuevo.classList.add('is-active');
+        // 3. Añadir ícono de check
+        const levelRight = card.querySelector('.level-right');
+        levelRight.innerHTML = '<span class="icon has-text-primary"><i class="fas fa-check-circle"></i></span>';
+
+        // 4. Actualizar el campo oculto y el cálculo
+        idHabHidden.value = card.dataset.id;
+        calcularTotal(card.dataset.preciobase); 
+    };
+
+    // -------------------------------------------------------------------
+    // 5. Inicialización y Listeners
+    // -------------------------------------------------------------------
+
+    // Eventos de cambios en inputs (fechas/ocupantes)
+    checkInInput.addEventListener('change', buscarDisponibilidad);
+    checkOutInput.addEventListener('change', buscarDisponibilidad);
+    adultosInput.addEventListener('change', buscarDisponibilidad);
+    ninosInput.addEventListener('change', buscarDisponibilidad);
+
+    // Asignar el listener de click al wrapper de tarjetas (delegación)
+    habitacionesCardsWrapper.addEventListener('click', handleCardSelection);
+    
+    // Inicializa la búsqueda al cargar la página
+    updateNoches();
+    buscarDisponibilidad();
+
+    // -------------------------------------------------------------------
+    // 6. Lógica del Modal Nuevo Huésped
+    // -------------------------------------------------------------------
+    const modalHuesped = document.getElementById('modalNuevoHuesped');
+    const btnNuevoHuesped = document.getElementById('btnNuevoHuespedModal');
+    const formHuesped = document.getElementById('formNuevoHuesped');
+    const btnGuardarHuesped = document.getElementById('btnGuardarNuevoHuesped');
+    const errorHuesped = document.getElementById('errorNuevoHuesped');
+
+    // 🚨 FIX: Asegura que el botón exista antes de agregar el listener
+    if (btnNuevoHuesped && modalHuesped) {
+        btnNuevoHuesped.addEventListener('click', () => {
+            modalHuesped.classList.add('is-active');
         });
-
-        // Guardar (submit) con validación final
-        btnGuardarNuevo.addEventListener('click', () => {
-            if (errorBox) errorBox.style.display = 'none';
-            
-            // Revalidación rápida antes de enviar
-            if (!isAvailable) {
-                mostrarError('La habitación no está disponible para las fechas seleccionadas.');
-                return;
-            }
-             if (!isCapacityOK) {
-                mostrarError('La cantidad de huéspedes excede la capacidad máxima del tipo de habitación.');
-                return;
-            }
-
-            // Validación de campo total manual
-            if (!totalManual.value || parseFloat(totalManual.value) <= 0) {
-                 mostrarError('El precio total debe ser mayor a cero.');
-                 return;
-            }
-
-            // Validación de Fechas
-            const checkInDate = fechaIn.value;
-            const checkOutDate = fechaOut.value;
-            const noches = calculateNights(checkInDate, checkOutDate);
-            
-            // Re-ejecutar validaciones de fechas que ya están en el backend
-            const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0);
-
-            const inDate = new Date(checkInDate + 'T00:00:00-03:00');
-            const outDate = new Date(checkOutDate + 'T00:00:00-03:00');
-            
-            if (outDate <= inDate) {
-                mostrarError('La fecha de Check-out debe ser posterior a la fecha de Check-in.');
-                return;
-            }
-            if (inDate < hoy && (inDate.getTime() !== hoy.getTime())) { 
-                mostrarError('La fecha de Check-in no puede ser anterior a hoy.');
-                return;
-            }
-            
-            // --- Confirmación antes de guardar ---
-            const confirmacion = confirm(`¿Está seguro de que desea crear esta reserva por ${noches} noches?`);
-            
-            if (confirmacion) {
-                formNuevo.submit();
-            }
-        });
+    } else {
+        console.error("Error: Elementos del Modal de Huésped no encontrados.");
     }
+
+
+    btnGuardarHuesped.addEventListener('click', async () => {
+        if (!formHuesped.checkValidity()) {
+            formHuesped.reportValidity();
+            return;
+        }
+
+        const formData = new FormData(formHuesped);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const response = await fetch('/hoteleria/huespedes/api/new', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+            
+            if (response.ok) {
+                modalHuesped.classList.remove('is-active');
+                errorHuesped.style.display = 'none';
+                
+                const newOption = new Option(`${result.Huesped.apellido}, ${result.Huesped.nombre} (${result.Huesped.documento || 'N/D'})`, result.Huesped.id_huesped, true, true);
+                huespedSelect.add(newOption);
+                
+                formHuesped.reset();
+            } else {
+                const errorMessage = result.errors ? Object.values(result.errors).join('. ') : 'Error al registrar el huésped.';
+                errorHuesped.textContent = errorMessage;
+                errorHuesped.style.display = 'block';
+            }
+
+        } catch (error) {
+            errorHuesped.textContent = 'Error de conexión con el servidor.';
+            errorHuesped.style.display = 'block';
+        }
+    });
 });
