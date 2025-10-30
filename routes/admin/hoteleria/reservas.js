@@ -78,17 +78,6 @@ router.post('/hoteleria/reservas/:id/checkout', async (req, res) => {
     }
 });
 
-// ✏️ GUARDAR Edición
-router.post('/hoteleria/reservas/:id/edit', async (req, res) => {
-    try {
-        await Repo.update(req.params.id, req.body);
-        res.redirect(`/hoteleria/reservas?${new URLSearchParams(req.query)}`);
-    } catch (error) {
-        console.error('Error al editar reserva:', error);
-        res.status(500).send('Error al editar reserva');
-    }
-});
-
 // 💾 OBTENER DATOS (para llenar el modal de edición)
 router.get('/hoteleria/reservas/:id/data', async (req, res) => {
     try {
@@ -99,6 +88,66 @@ router.get('/hoteleria/reservas/:id/data', async (req, res) => {
         res.json(reserva);
     } catch (error) {
         res.status(500).send('Error al obtener datos de la reserva');
+    }
+});
+
+// ====================================================================
+// ✏️ RUTAS DE EDICIÓN DE RESERVA
+// ====================================================================
+
+// 📄 GET: Mostrar formulario para editar una reserva
+router.get('/hoteleria/reservas/:id/edit', async (req, res) => {
+    try {
+        const reserva = await Repo.getById(req.params.id);
+        if (!reserva) {
+            return res.status(404).send('Reserva no encontrada');
+        }
+
+        // Obtenemos datos para los selects del formulario
+        const { tiposHabitacion, huespedes } = await Repo.getFormData();
+
+        // Buscamos habitaciones disponibles para las fechas de la reserva
+        // para que el usuario pueda cambiar de habitación si lo desea.
+        const habitacionesDisponibles = await Repo.findAvailableRooms(
+            reserva.fechaCheckIn,
+            reserva.fechaCheckOut,
+            reserva.cantAdultos,
+            reserva.cantNinos,
+            reserva.id_hab // Excluimos la habitación actual de la validación de disponibilidad
+        );
+
+        res.send(newView({
+            huespedes,
+            tiposHabitacion,
+            habitacionesDisponibles,
+            data: reserva, // Pasamos los datos de la reserva para rellenar el form
+            errors: {},
+        }));
+    } catch (error) {
+        console.error('Error al cargar la página de edición de reserva:', error);
+        res.status(500).send('Error interno al cargar el formulario de edición.');
+    }
+});
+
+// 💾 POST: Guardar los cambios de una edición
+router.post('/hoteleria/reservas/:id/edit', async (req, res) => {
+    const data = req.body;
+    const id = req.params.id;
+
+    try {
+        await Repo.update(id, {
+            ...data,
+            id_huesped: parseInt(data.id_huesped),
+            id_hab: parseInt(data.id_hab),
+            cantAdultos: parseInt(data.cantAdultos),
+            cantNinos: parseInt(data.cantNinos),
+            total: parseFloat(data.total)
+        });
+        
+        res.redirect('/hoteleria/reservas?success=Reserva actualizada exitosamente');
+    } catch (error) {
+        console.error(`Error al actualizar reserva ${id}:`, error);
+        res.redirect(`/hoteleria/reservas/${id}/edit?error=No se pudo guardar la reserva`);
     }
 });
 

@@ -54,8 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     toggleBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      submenu.hidden ? openSubmenu() : closeSubmenu();
+        e.preventDefault();
+        submenu.hidden ? openSubmenu() : closeSubmenu();
     });
 
     // Marcar el link activo dentro del submenú
@@ -69,8 +69,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Inicializar todos los submenús definidos
-// Inicializar todos los submenús definidos
-['inventarios', 'compras', 'hoteleria'].forEach(initSubmenu);
+  // Inicializar todos los submenús definidos
+  ['inventarios', 'compras', 'hoteleria', 'configuracion'].forEach(initSubmenu);
 
   // --- 3. LÓGICA PARA SIDEBAR EN MÓVIL (MENÚ HAMBURGUESA) ---
   const mobileToggleBtn = document.getElementById('openMobile');

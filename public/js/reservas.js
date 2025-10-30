@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+
     // -------------------------------------------------------------------
     // 1. Elementos del DOM
     // -------------------------------------------------------------------
@@ -237,6 +238,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------------
 
     // Eventos de cambios en inputs (fechas/ocupantes)
+    // 🚨 FIX: Asegurarse de que los elementos existan antes de agregar listeners
+    // (Esto evita errores en la página de listado donde no existen)
+    if (checkInInput && checkOutInput && adultosInput && ninosInput) {
     checkInInput.addEventListener('change', buscarDisponibilidad);
     checkOutInput.addEventListener('change', buscarDisponibilidad);
     adultosInput.addEventListener('change', buscarDisponibilidad);
@@ -244,11 +248,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Asignar el listener de click al wrapper de tarjetas (delegación)
     habitacionesCardsWrapper.addEventListener('click', handleCardSelection);
-    
+
     // Inicializa la búsqueda al cargar la página
     updateNoches();
     buscarDisponibilidad();
-
+    }
+    
     // -------------------------------------------------------------------
     // 6. Lógica del Modal Nuevo Huésped
     // -------------------------------------------------------------------
@@ -258,17 +263,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnGuardarHuesped = document.getElementById('btnGuardarNuevoHuesped');
     const errorHuesped = document.getElementById('errorNuevoHuesped');
 
-    // 🚨 FIX: Asegura que el botón exista antes de agregar el listener
-    if (btnNuevoHuesped && modalHuesped) {
+    // 🚨 FIX: Asegura que los elementos del modal existan
+    if (btnNuevoHuesped && modalHuesped && formHuesped && btnGuardarHuesped && errorHuesped) {
         btnNuevoHuesped.addEventListener('click', () => {
             modalHuesped.classList.add('is-active');
         });
-    } else {
-        console.error("Error: Elementos del Modal de Huésped no encontrados.");
-    }
 
-
-    btnGuardarHuesped.addEventListener('click', async () => {
+        btnGuardarHuesped.addEventListener('click', async () => {
         if (!formHuesped.checkValidity()) {
             formHuesped.reportValidity();
             return;
@@ -304,5 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
             errorHuesped.textContent = 'Error de conexión con el servidor.';
             errorHuesped.style.display = 'block';
         }
-    });
+        });
+    }
 });

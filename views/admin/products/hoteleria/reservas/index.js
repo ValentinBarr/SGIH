@@ -15,6 +15,17 @@ const formatDate = (dateStr) => {
 };
 
 /**
+ * Formatea un número como moneda ARS (Peso Argentino).
+ */
+const formatCurrency = (value) => {
+    const number = Number(value) || 0;
+    return new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+    }).format(number);
+}
+
+/**
  * Devuelve la clase de color de Bulma para cada estado (Se mantiene, aunque no se usa en la tabla)
  */
 const getEstadoTag = (estado) => {
@@ -122,16 +133,13 @@ module.exports = ({
               </div>
             </div>
 
-            <form method="GET" class="box" id="formFiltrosReservas">
-              </form>
-
             <p class="is-size-7 has-text-grey mb-3">
               Mostrando ${totalReservas} ${
                 totalReservas === 1 ? 'reserva' : 'reservas'
             }
             </p>
 
-            <table class="table is-fullwidth is-hoverable is-striped is-size-7">
+            <table class="table is-fullwidth is-hoverable is-striped">
               <thead>
                 <tr>
                   <th>Huésped / Cód.</th>
@@ -164,9 +172,7 @@ module.exports = ({
                       </td>
                       <td>
                         <div>${getRoomNumber(r)}</div> 
-                        <div class="has-text-grey-darker has-text-weight-bold">$${Number(
-                          r.total || 0
-                      ).toFixed(2)}</div>
+                        <div class="has-text-grey-darker has-text-weight-bold">${formatCurrency(r.total)}</div>
                       </td>
                       <td>
                         <div class="buttons are-small">

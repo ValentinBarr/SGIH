@@ -56,7 +56,7 @@ const renderHabitacionCards = (habitaciones, tipos, noches) => {
         const comodidades = tipo && tipo.Comodidades ? tipo.Comodidades : [];
         
         const isSelected = data.id_hab == h.id_hab;
-        const cardClass = isSelected ? 'is-success has-background-success-light' : 'has-background-white';
+        const cardClass = isSelected ? 'is-primary-light has-border-primary' : '';
         
         const capacidadSuficiente = capacidadTipo >= huespedesNecesarios;
         const capacidadMessage = capacidadSuficiente 
@@ -72,42 +72,43 @@ const renderHabitacionCards = (habitaciones, tipos, noches) => {
 
         return `
             <div 
-                class="box room-card p-4 mb-3 is-clickable ${cardClass}" 
+                class="box room-card p-4 mb-4 is-clickable ${cardClass}" 
                 data-id="${h.id_hab}" 
                 data-preciobase="${precioBase.toFixed(2)}"
             >
-                <div class="level is-mobile mb-1">
+                <div class="level is-mobile mb-2">
                     <div class="level-left">
-                        <p class="title is-5 mb-0 has-text-weight-bold has-text-grey-darker">
-                            HABITACIÓN ${h.numero} - ${tipoNombre}
-                        </p>
+                        <div class="level-item">
+                            <p class="title is-5 mb-0 has-text-weight-bold has-text-grey-darker">
+                                Habitación ${h.numero}
+                            </p>
+                        </div>
+                        <div class="level-item">
+                            <span class="tag is-info is-light">${tipoNombre}</span>
+                        </div>
                     </div>
                     <div class="level-right">
-                         ${isSelected ? '<span class="icon has-text-success"><i class="fas fa-check-circle"></i></span>' : ''}
+                         ${isSelected ? '<span class="icon has-text-primary is-size-5"><i class="fas fa-check-circle"></i></span>' : ''}
                     </div>
                 </div>
-                <p class="subtitle is-7 has-text-grey-darker mb-2">Piso: ${h.piso || 'N/A'}</p>
                 
-                <hr class="mt-2 mb-2">
-                
-                <div class="level is-mobile is-size-6 mb-2">
+                <div class="level is-mobile is-size-6 mb-3">
                     <div class="level-left">
-                        <span class="icon has-text-link mr-2"><i class="fas fa-money-bill-wave"></i></span>
-                        <p class="has-text-weight-semibold">Tarifa: </p>
+                        <p class="has-text-grey">Piso: ${h.piso || 'N/A'}</p>
                     </div>
                     <div class="level-right">
-                        <p>$${precioBase.toFixed(2)}/noche x ${noches} = <strong class="has-text-link">$${totalCalculado}</strong></p>
+                        <p class="has-text-weight-semibold">$${precioBase.toFixed(2)}/noche x ${noches} noches = <strong class="has-text-primary is-size-5">$${totalCalculado}</strong></p>
                     </div>
                 </div>
 
-                <div class="is-size-7 has-text-weight-semibold mt-3">
-                    ${capacidadMessage}
-                </div>
-                
-                <div class="content is-size-7 mt-2">
-                    <p class="has-text-grey mb-1">Comodidades:</p>
+                <div class="content is-size-7">
                     <div class="tags">
                         ${comodidadesHtml || '<span class="has-text-grey-light">No hay comodidades clave listadas.</span>'}
+                    </div>
+                    <div class="mt-3">
+                        <p class="is-size-7 has-text-weight-semibold">
+                            ${capacidadMessage}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -129,33 +130,31 @@ module.exports = ({
                    ? require('date-fns').differenceInDays(new Date(data.fechaCheckOut), new Date(data.fechaCheckIn)) 
                    : 0;
 
+    // --- Lógica para Edición vs Creación ---
+    const isEditing = data && data.id_reserva;
+    const formAction = isEditing ? `/hoteleria/reservas/${data.id_reserva}/edit` : '/hoteleria/reservas/new';
+    const pageTitle = isEditing ? `Editar Reserva #${data.codigoReserva}` : 'Crear Nueva Reserva';
+    const buttonText = isEditing ? 'Guardar Cambios' : 'Guardar Reserva';
     const habitacionesCardsHtml = renderHabitacionCards(habitacionesDisponibles, tiposHabitacion, noches);
 
     return layout({
         content: `
         <section class="section">
             <div class="container is-max-widescreen">
-                <nav class="breadcrumb" aria-label="breadcrumbs">
-                    <ul>
-                        <li><a href="/hoteleria/reservas">Reservas</a></li>
-                        <li class="is-active"><a href="#" aria-current="page">Nueva Reserva</a></li>
-                    </ul>
-                </nav>
+                <h1 class="title is-3 mb-5">${pageTitle}</h1>
 
-                <h1 class="title is-3 mb-5 has-text-info-dark">Crear Nueva Reserva</h1>
+                <form id="formNuevaReserva" method="POST" action="${formAction}">
+                    
+                    ${errors.general ? `<div class="notification is-danger is-light">${errors.general}</div>` : ''}
 
-                <div class="columns is-variable is-6">
-                    <div class="column is-5">
-                        <div class="box has-background-white-ter p-5">
-                            <form id="formNuevaReserva" method="POST" action="/hoteleria/reservas/new">
-                                
-                                ${errors.general ? `<div class="notification is-danger is-light">${errors.general}</div>` : ''}
-
-                                <h2 class="title is-5 is-spaced has-text-primary">1. Huésped y Fechas</h2>
-                                <hr class="mt-0 mb-4">
-                                
+                    <div class="columns is-multiline">
+                        <div class="column is-7">
+                            <div class="box p-5 mb-5">
+                                <h2 class="title is-5">1. Huésped y Fechas</h2>
+                                <hr class="mt-2 mb-4">
+                                    
                                 <div class="field">
-                                    <label class="label">Huésped Existente</label>
+                                    <label class="label">Huésped Principal</label>
                                     <div class="field has-addons">
                                         <div class="control is-expanded">
                                             <div class="select is-fullwidth is-rounded ${errors.id_huesped ? 'is-danger' : ''}">
@@ -197,10 +196,12 @@ module.exports = ({
                                         Total: <span id="resumen_noches">0</span> noches
                                     </p>
                                 </div>
-                                
-                                <h2 class="title is-5 is-spaced mt-6 has-text-primary">3. Ocupantes</h2>
-                                <hr class="mt-0 mb-4">
-                                
+                             </div>
+                        </div>
+                        <div class="column is-5">
+                             <div class="box p-5 mb-5">
+                                <h2 class="title is-5">2. Ocupantes</h2>
+                                <hr class="mt-2 mb-4">
                                 <div class="columns">
                                     <div class="column">
                                         <div class="field">
@@ -217,73 +218,61 @@ module.exports = ({
                                         </div>
                                     </div>
                                 </div>
-
-                                <h2 class="title is-5 is-spaced mt-6 has-text-primary">4. Resumen y Estado</h2>
-                                <hr class="mt-0 mb-4">
-
-                                <input type="hidden" name="id_hab" id="id_hab_hidden" value="${data.id_hab || ''}" required>
-                                ${errors.id_hab ? `<p class="help is-danger mb-4">${errors.id_hab}</p>` : ''}
-
-                                <div class="box has-background-warning-light p-3 mb-4 mt-5">
-                                    <div class="level is-mobile">
-                                        <div class="level-left">
-                                            <p class="title is-5 has-text-warning-dark mb-0">TOTAL ESTIMADO</p>
-                                        </div>
-                                        <div class="level-right">
-                                            <p class="title is-5 has-text-warning-dark mb-0" id="resumen_total_calc">$0.00</p>
-                                            <input type="hidden" name="total" id="hidden_total_calc" value="${data.total || '0.00'}">
-                                        </div>
-                                    </div>
-                                    <p class="help has-text-warning-dark mt-2">Seleccione una habitación para calcular el precio final.</p>
-                                </div>
-                                
-                                <div class="columns">
-                                    <div class="column is-one-third">
-                                        <div class="field">
-                                            <label class="label">Estado Inicial</label>
-                                            <div class="select is-fullwidth is-rounded">
-                                                <select name="estado" required>
-                                                    <option value="PENDIENTE" ${data.estado === 'PENDIENTE' || !data.estado ? 'selected' : ''}>Pendiente</option>
-                                                    <option value="CONFIRMADA" ${data.estado === 'CONFIRMADA' ? 'selected' : ''}>Confirmada</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="column">
-                                        <div class="field">
-                                            <label class="label">Observaciones</label>
-                                            <div class="control">
-                                                <textarea name="observaciones" class="textarea is-rounded" rows="2">${data.observaciones || ''}</textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="field is-grouped is-grouped-right mt-6">
-                                    <p class="control">
-                                        <a href="/hoteleria/reservas" class="button is-light is-rounded">Cancelar</a>
-                                    </p>
-                                    <p class="control">
-                                        <button type="submit" class="button is-success is-rounded" id="btnGuardarReserva">
-                                            <span class="icon"><i class="fas fa-save"></i></span>
-                                            <span>Guardar Reserva</span>
-                                        </button>
-                                    </p>
-                                </div>
-
-                            </form>
+                             </div>
                         </div>
                     </div>
 
-                    <div class="column is-7">
-                        <h2 class="title is-5 has-text-primary-dark">Habitaciones Disponibles</h2>
-                        <p class="subtitle is-6 has-text-grey mb-4">Haz clic para seleccionar la habitación.</p>
+                    <div class="box p-5 mb-5">
+                        <h2 class="title is-5">3. Habitaciones Disponibles</h2>
+                        <p class="subtitle is-6 has-text-grey mb-4">Resultados para tu búsqueda. Haz clic en una tarjeta para seleccionarla.</p>
                         <hr class="mt-0 mb-4">
                         <div id="habitaciones-wrapper-cards">
                             ${habitacionesCardsHtml}
                         </div>
                     </div>
-                </div>
+
+                    <div class="box p-5 mb-5">
+                                <h2 class="title is-5">4. Resumen y Estado</h2>
+                                <hr class="mt-2 mb-4">
+                                
+                                <input type="hidden" name="id_hab" id="id_hab_hidden" value="${data.id_hab || ''}" required>
+                                ${errors.id_hab ? `<p class="help is-danger mb-4">${errors.id_hab}</p>` : ''}
+
+                                <div class="box has-background-primary-light p-4 mb-5">
+                                    <div class="level is-mobile">
+                                        <div class="level-left">
+                                            <p class="title is-5 mb-0">TOTAL A PAGAR</p>
+                                        </div>
+                                        <div class="level-right">
+                                            <p class="title is-4 has-text-primary-dark mb-0" id="resumen_total_calc">$0.00</p>
+                                            <input type="hidden" name="total" id="hidden_total_calc" value="${data.total || '0.00'}">
+                                        </div>
+                                    </div>
+                                    <p class="help has-text-primary-dark mt-2">El total se calcula al seleccionar una habitación disponible.</p>
+                                </div>
+                                
+                                <input type="hidden" name="estado" value="CONFIRMADA">
+
+                                <div class="field">
+                                    <label class="label">Observaciones</label>
+                                    <div class="control">
+                                        <textarea name="observaciones" class="textarea is-rounded" rows="2">${data.observaciones || ''}</textarea>
+                                    </div>
+                                </div>
+                    </div>
+
+                    <div class="field is-grouped is-grouped-right mt-5">
+                        <p class="control">
+                            <a href="/hoteleria/reservas" class="button is-light is-rounded is-medium">Cancelar</a>
+                        </p>
+                        <p class="control">
+                            <button type="submit" class="button is-primary is-rounded is-medium" id="btnGuardarReserva">
+                                <span class="icon"><i class="fas fa-save"></i></span>
+                                <span>${buttonText}</span>
+                            </button>
+                        </p>
+                    </div>
+                </form>
             </div>
         </section>
 
