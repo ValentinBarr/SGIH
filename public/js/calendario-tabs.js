@@ -22,12 +22,25 @@
         });
         
         // Mostrar el contenido correspondiente
-        const targetContent = document.getElementById(`calendario-${targetTab}-container`);
+        let targetContent;
+        if (targetTab === 'tabla') {
+          targetContent = document.getElementById('tabla-reservas-container');
+        } else {
+          targetContent = document.getElementById(`calendario-${targetTab}-container`);
+        }
+        
         if (targetContent) {
           targetContent.classList.add('active');
           
           // Trigger resize event para que los calendarios se ajusten
           window.dispatchEvent(new Event('resize'));
+          
+          // Si es el calendario visual, reinicializar
+          if (targetTab === 'visual' && window.calendarioVisualReservas) {
+            setTimeout(() => {
+              window.calendarioVisualReservas.cargarReservas();
+            }, 100);
+          }
           
           console.log(`Cambiado a pestaña: ${targetTab}`);
         }

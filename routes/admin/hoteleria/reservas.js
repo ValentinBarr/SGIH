@@ -236,23 +236,100 @@ router.get('/hoteleria/reservas/new', async (req, res) => {
 router.post('/hoteleria/reservas/new', async (req, res) => {
     const data = req.body;
     
-    // ⚠️ VALIDACIÓN: No permitir fechas pasadas
+    console.log('🔄 Recibiendo datos de nueva reserva:', data);
+    
+    // Detectar si es una petición AJAX (JSON) o formulario HTML
+    const isAjax = req.headers['content-type'] && req.headers['content-type'].includes('application/json');
+    
+    // ⚠️ VALIDACIÓN: Campos requeridos
+    if (!data.fechaCheckIn || !data.fechaCheckOut || !data.id_huesped || !data.id_hab) {
+        const error = 'Faltan campos requeridos: fechas, huésped y habitación son obligatorios';
+        console.error('❌ Validación fallida:', error);
+        
+        if (isAjax) {
+            return res.status(400).json({ error, message: error });
+        } else {
+            if(req.session) req.session.formData = data;
+            return res.redirect(`/hoteleria/reservas/new?errors=${encodeURIComponent(JSON.stringify({ general: error }))}`);
+        }
+    }
+    
+    // ⚠️ VALIDACIÓN: No permitir fechas pasadas (pero sí permitir hoy)
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    const fechaCheckIn = new Date(data.fechaCheckIn);
-    fechaCheckIn.setHours(0, 0, 0, 0);
     
-    if (fechaCheckIn < hoy) {
-        const errors = { 
-            general: 'No se pueden crear reservas con fechas anteriores a hoy.',
-            fechaCheckIn: 'La fecha de check-in no puede ser anterior a hoy.'
-        };
-        if(req.session) req.session.formData = data;
-        return res.redirect(`/hoteleria/reservas/new?errors=${encodeURIComponent(JSON.stringify(errors))}`);
+    // Crear fecha desde string para evitar problemas de zona horaria
+    const fechaCheckInStr = data.fechaCheckIn;
+    const fechaCheckIn = new Date(fechaCheckInStr + 'T00:00:00');
+    
+    console.log('🔍 Validación de fechas:', {
+        fechaCheckInStr,
+        fechaCheckIn: fechaCheckIn.toISOString(),
+        hoy: hoy.toISOString(),
+        fechaCheckInTime: fechaCheckIn.getTime(),
+        hoyTime: hoy.getTime(),
+        diferencia: fechaCheckIn.getTime() - hoy.getTime()
+    });
+    
+    if (fechaCheckIn.getTime() < hoy.getTime()) {
+        const error = 'No se pueden crear reservas con fechas anteriores a hoy';
+        console.error('❌ Fecha inválida:', { 
+            fechaCheckInStr,
+            fechaCheckIn: fechaCheckIn.toISOString(), 
+            hoy: hoy.toISOString(),
+            diferenciaDias: Math.floor((fechaCheckIn.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+        });
+        
+        if (isAjax) {
+            return res.status(400).json({ 
+                error, 
+                message: error,
+                fechaCheckIn: 'La fecha de check-in no puede ser anterior a hoy.'
+            });
+        } else {
+            const errors = { 
+                general: error,
+                fechaCheckIn: 'La fecha de check-in no puede ser anterior a hoy.'
+            };
+            if(req.session) req.session.formData = data;
+            return res.redirect(`/hoteleria/reservas/new?errors=${encodeURIComponent(JSON.stringify(errors))}`);
+        }
+    }
+
+    // ⚠️ VALIDACIÓN: Fechas lógicas
+    const fechaCheckOutStr = data.fechaCheckOut;
+    const fechaCheckOut = new Date(fechaCheckOutStr + 'T00:00:00');
+    
+    console.log('🔍 Validación fechas lógicas:', {
+        fechaCheckOutStr,
+        fechaCheckOut: fechaCheckOut.toISOString(),
+        fechaCheckIn: fechaCheckIn.toISOString(),
+        diferencia: fechaCheckOut.getTime() - fechaCheckIn.getTime()
+    });
+    
+    if (fechaCheckOut.getTime() <= fechaCheckIn.getTime()) {
+        const error = 'La fecha de check-out debe ser posterior a la fecha de check-in';
+        console.error('❌ Fechas inválidas:', { fechaCheckIn, fechaCheckOut });
+        
+        if (isAjax) {
+            return res.status(400).json({ error, message: error });
+        } else {
+            if(req.session) req.session.formData = data;
+            return res.redirect(`/hoteleria/reservas/new?errors=${encodeURIComponent(JSON.stringify({ general: error }))}`);
+        }
     }
 
     try {
-        await Repo.create({
+        console.log('💾 Creando reserva con datos:', {
+            ...data,
+            id_huesped: parseInt(data.id_huesped),
+            id_hab: parseInt(data.id_hab),
+            cantAdultos: parseInt(data.cantAdultos),
+            cantNinos: parseInt(data.cantNinos),
+            total: parseFloat(data.total)
+        });
+
+        const nuevaReserva = await Repo.create({
             ...data,
             id_huesped: parseInt(data.id_huesped),
             id_hab: parseInt(data.id_hab),
@@ -261,15 +338,34 @@ router.post('/hoteleria/reservas/new', async (req, res) => {
             total: parseFloat(data.total)
         });
         
-        res.redirect('/hoteleria/reservas?success=Reserva creada exitosamente');
-    } catch (error) {
-        console.error('Error al crear reserva (Repo):', error);
+        console.log('✅ Reserva creada exitosamente:', nuevaReserva);
         
-        // Guardar data y error en sesión para el redirect
-        if(req.session) req.session.formData = data;
+        if (isAjax) {
+            res.status(201).json({ 
+                success: true, 
+                message: 'Reserva creada exitosamente',
+                reserva: nuevaReserva
+            });
+        } else {
+            res.redirect('/hoteleria/reservas?success=Reserva creada exitosamente');
+        }
+        
+    } catch (error) {
+        console.error('💥 Error al crear reserva (Repo):', error);
+        
         const errorMessage = error.message || 'Error al guardar la reserva. Verifique la disponibilidad.';
         
-        res.redirect(`/hoteleria/reservas/new?errors=${encodeURIComponent(JSON.stringify({ general: errorMessage }))}`);
+        if (isAjax) {
+            res.status(500).json({ 
+                error: errorMessage, 
+                message: errorMessage,
+                details: error.toString()
+            });
+        } else {
+            // Guardar data y error en sesión para el redirect
+            if(req.session) req.session.formData = data;
+            res.redirect(`/hoteleria/reservas/new?errors=${encodeURIComponent(JSON.stringify({ general: errorMessage }))}`);
+        }
     }
 });
 
@@ -278,8 +374,10 @@ router.post('/hoteleria/reservas/new', async (req, res) => {
 // ====================================================================
 
 // API: Obtener todas las reservas para el calendario visual (solo activas)
-router.get('/api/calendario/reservas', async (req, res) => {
+router.get('/hoteleria/reservas/api/calendario', async (req, res) => {
     try {
+        console.log('🔄 API: Obteniendo reservas para calendario...');
+        
         // Obtener todas las reservas sin paginación
         const allReservas = await prisma.reserva.findMany({
             include: {
@@ -293,18 +391,32 @@ router.get('/api/calendario/reservas', async (req, res) => {
             orderBy: { fechaCheckIn: 'desc' },
         });
         
+        console.log(`📊 Total de reservas encontradas: ${allReservas.length}`);
+        
         // Filtrar solo reservas activas (excluir CANCELADA)
         const reservasActivas = allReservas.filter(r => r.estado !== 'CANCELADA');
         
+        console.log(`✅ Reservas activas: ${reservasActivas.length}`);
+        
+        if (reservasActivas.length > 0) {
+            console.log('📋 Primera reserva:', {
+                id: reservasActivas[0].id_reserva,
+                codigo: reservasActivas[0].codigoReserva,
+                huesped: `${reservasActivas[0].Huesped?.apellido}, ${reservasActivas[0].Huesped?.nombre}`,
+                fechas: `${reservasActivas[0].fechaCheckIn} - ${reservasActivas[0].fechaCheckOut}`,
+                estado: reservasActivas[0].estado
+            });
+        }
+        
         res.json({ reservas: reservasActivas });
     } catch (error) {
-        console.error('Error al obtener reservas:', error);
-        res.status(500).json({ error: 'Error al obtener reservas' });
+        console.error('❌ Error al obtener reservas:', error);
+        res.status(500).json({ error: 'Error al obtener reservas', details: error.message });
     }
 });
 
 // API: Obtener tipos de habitación para el calendario funcional
-router.get('/api/calendario/tipos-habitacion', async (req, res) => {
+router.get('/hoteleria/reservas/api/tipos-habitacion', async (req, res) => {
     try {
         const tiposHabitacion = await prisma.tipoHabitacion.findMany({
             where: { activo: true },
