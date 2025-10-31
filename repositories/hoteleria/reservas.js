@@ -34,9 +34,87 @@ class ReservasRepository {
       ];
     }
 
-    // 🎯 Filtro por estado
-    if (estado && Object.values(EstadoReserva).includes(estado)) {
-      where.estado = estado;
+    // ====================================================================
+    // MÉTODOS DE LECTURA Y FILTROS
+    // ====================================================================
+
+    /**
+     * Obtiene todas las reservas con filtros y paginación (Ajustado al nuevo modelo Habitacion)
+     */
+    async getAll({ q, page = 1, estado, id_tipoHab, fechaDesde, fechaHasta } = {}) {
+        const currentPage = Number(page) || 1;
+        const where = {};
+
+        // 1. Filtro de Búsqueda (Texto)
+        if (q) {
+            where.OR = [
+                { codigoReserva: { contains: q, mode: 'insensitive' } },
+                { Huesped: { nombre: { contains: q, mode: 'insensitive' } } },
+                { Huesped: { apellido: { contains: q, mode: 'insensitive' } } },
+                { Huesped: { documento: { contains: q, mode: 'insensitive' } } },
+            ];
+        }
+
+        // 2. Filtro de Estado (Enum)
+        if (estado && Object.values(EstadoReserva).includes(estado)) {
+            where.estado = estado;
+        }
+
+        // 3. Filtro de Tipo de Habitación (Ajustado a la relación Reserva -> Habitacion -> TipoHabitacion)
+        if (id_tipoHab) {
+            where.Habitacion = {
+                id_tipoHab: Number(id_tipoHab),
+            };
+        }
+
+        // 4. Filtro de Rango de Fechas (Check-in)
+        if (fechaDesde) {
+            where.fechaCheckIn = { ...where.fechaCheckIn, gte: new Date(fechaDesde) };
+        }
+        if (fechaHasta) {
+            where.fechaCheckIn = { ...where.fechaCheckIn, lte: new Date(fechaHasta) };
+        }
+
+        // --- Conteo y Paginación ---
+        const totalReservas = await prisma.reserva.count({ where });
+        const totalPages = Math.ceil(totalReservas / PAGE_SIZE);
+
+        // --- Obtener Datos ---
+        const reservas = await prisma.reserva.findMany({
+            where,
+            include: {
+                Huesped: true,
+                Habitacion: { 
+                    include: {
+                        TipoHabitacion: true, 
+                    }
+                },
+            },
+            orderBy: [
+                // Primero ordenar por estado: activas primero, canceladas al final
+                {
+                    estado: 'asc' // CANCELADA viene después de CHECKED_IN, CONFIRMADA, etc.
+                },
+                // Luego por fecha de check-in descendente
+                {
+                    fechaCheckIn: 'desc'
+                }
+            ],
+            take: PAGE_SIZE,
+            skip: (currentPage - 1) * PAGE_SIZE,
+        });
+
+        // Ordenar manualmente para poner CANCELADA al final
+        const reservasOrdenadas = reservas.sort((a, b) => {
+            // Si una es CANCELADA y la otra no, CANCELADA va al final
+            if (a.estado === 'CANCELADA' && b.estado !== 'CANCELADA') return 1;
+            if (a.estado !== 'CANCELADA' && b.estado === 'CANCELADA') return -1;
+            
+            // Si ambas son CANCELADA o ambas no lo son, ordenar por fecha
+            return new Date(b.fechaCheckIn) - new Date(a.fechaCheckIn);
+        });
+
+        return { reservas: reservasOrdenadas, totalPages, currentPage, totalReservas };
     }
 
     // 🏨 Filtro por tipo de habitación

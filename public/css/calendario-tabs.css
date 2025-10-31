@@ -1,0 +1,65 @@
+/* ====================================================================
+   SISTEMA DE PESTAÑAS PARA CALENDARIOS
+   ==================================================================== */
+
+.calendario-tabs {
+  margin-bottom: 2rem;
+}
+
+.calendario-tabs ul {
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.calendario-tabs li {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.calendario-tabs li:hover {
+  background-color: #f9fafb;
+}
+
+.calendario-tabs li.is-active a {
+  border-bottom-color: #3b82f6;
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.calendario-tab-content {
+  display: none;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.calendario-tab-content.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.calendario-funcional {
+  background-color: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .calendario-tabs li span:not(.icon) {
+    display: none;
+  }
+  
+  .calendario-tabs li {
+    flex: 1;
+    text-align: center;
+  }
+}
