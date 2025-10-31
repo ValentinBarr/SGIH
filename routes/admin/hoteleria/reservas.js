@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const Repo = require('../../../repositories/hoteleria/reservas');
+const { PrismaClient, EstadoReserva } = require('../../../generated/prisma');
+const prisma = new PrismaClient();
 
 // ⚠️ Asegúrate de que esta vista esté definida al inicio de tu archivo de rutas
 const listView = require('../../../views/admin/products/hoteleria/reservas/index'); 
-const newView = require('../../../views/admin/products/hoteleria/reservas/new'); 
-const { EstadoReserva } = require('../../../generated/prisma');
+const newView = require('../../../views/admin/products/hoteleria/reservas/new');
 
 // ====================================================================
 // RUTAS DE LISTADO Y ACCIONES
@@ -58,6 +59,24 @@ router.post('/hoteleria/reservas/:id/cancelar', async (req, res) => {
     }
 });
 
+// 🗑️ Eliminar (DELETE permanente)
+router.delete('/hoteleria/reservas/:id/eliminar', async (req, res) => {
+    try {
+        const { PrismaClient } = require('@prisma/client');
+        const prisma = new PrismaClient();
+        
+        await prisma.reserva.delete({
+            where: { id_reserva: parseInt(req.params.id) }
+        });
+        
+        await prisma.$disconnect();
+        res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('Error al eliminar reserva:', error);
+        res.status(500).json({ error: 'Error al eliminar reserva' });
+    }
+});
+
 // ➡️ Check-in
 router.post('/hoteleria/reservas/:id/checkin', async (req, res) => {
     try {
@@ -103,6 +122,14 @@ router.get('/hoteleria/reservas/:id/edit', async (req, res) => {
             return res.status(404).send('Reserva no encontrada');
         }
 
+        console.log('=== EDITAR RESERVA ===');
+        console.log('Reserva ID:', reserva.id_reserva);
+        console.log('Check-in:', reserva.fechaCheckIn);
+        console.log('Check-out:', reserva.fechaCheckOut);
+        console.log('Adultos:', reserva.cantAdultos);
+        console.log('Niños:', reserva.cantNinos);
+        console.log('Habitación actual:', reserva.id_hab);
+
         // Obtenemos datos para los selects del formulario
         const { tiposHabitacion, huespedes } = await Repo.getFormData();
 
@@ -116,7 +143,12 @@ router.get('/hoteleria/reservas/:id/edit', async (req, res) => {
             reserva.id_hab // Excluimos la habitación actual de la validación de disponibilidad
         );
 
-        res.send(newView({
+        console.log('Habitaciones disponibles encontradas:', habitacionesDisponibles.length);
+        console.log('Tipos de habitación:', tiposHabitacion.length);
+
+        const editView = require('../../../views/admin/products/hoteleria/reservas/edit');
+        
+        res.send(editView({
             huespedes,
             tiposHabitacion,
             habitacionesDisponibles,
@@ -165,8 +197,25 @@ router.get('/hoteleria/reservas/new', async (req, res) => {
         const errors = req.query.errors ? JSON.parse(decodeURIComponent(req.query.errors)) : {};
         
         // 🚨 PREVENCIÓN DE UNDEFINED: Asegurarse de que req.session.formData exista
-        const formData = (req.session && req.session.formData) ? req.session.formData : {};
+        let formData = (req.session && req.session.formData) ? req.session.formData : {};
         if(req.session && req.session.formData) delete req.session.formData;
+
+        // 🆕 Prellenar datos desde query params (desde calendario)
+        if (req.query.fechaCheckIn) {
+            formData.fechaCheckIn = req.query.fechaCheckIn;
+        }
+        if (req.query.fechaCheckOut) {
+            formData.fechaCheckOut = req.query.fechaCheckOut;
+        }
+        if (req.query.id_tipoHab) {
+            formData.id_tipoHab = parseInt(req.query.id_tipoHab);
+        }
+        if (req.query.cantAdultos) {
+            formData.cantAdultos = parseInt(req.query.cantAdultos);
+        }
+        if (req.query.cantNinos) {
+            formData.cantNinos = parseInt(req.query.cantNinos);
+        }
 
         res.send(
             newView({ 
@@ -187,7 +236,20 @@ router.get('/hoteleria/reservas/new', async (req, res) => {
 router.post('/hoteleria/reservas/new', async (req, res) => {
     const data = req.body;
     
-    // ⚠️ VALIDACIÓN INICIAL - Puedes expandirla aquí
+    // ⚠️ VALIDACIÓN: No permitir fechas pasadas
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fechaCheckIn = new Date(data.fechaCheckIn);
+    fechaCheckIn.setHours(0, 0, 0, 0);
+    
+    if (fechaCheckIn < hoy) {
+        const errors = { 
+            general: 'No se pueden crear reservas con fechas anteriores a hoy.',
+            fechaCheckIn: 'La fecha de check-in no puede ser anterior a hoy.'
+        };
+        if(req.session) req.session.formData = data;
+        return res.redirect(`/hoteleria/reservas/new?errors=${encodeURIComponent(JSON.stringify(errors))}`);
+    }
 
     try {
         await Repo.create({
@@ -215,10 +277,62 @@ router.post('/hoteleria/reservas/new', async (req, res) => {
 // 🚀 RUTAS API (Consumidas por AJAX/JS)
 // ====================================================================
 
+// API: Obtener todas las reservas para el calendario visual (solo activas)
+router.get('/api/calendario/reservas', async (req, res) => {
+    try {
+        // Obtener todas las reservas sin paginación
+        const allReservas = await prisma.reserva.findMany({
+            include: {
+                Huesped: true,
+                Habitacion: { 
+                    include: {
+                        TipoHabitacion: true, 
+                    }
+                },
+            },
+            orderBy: { fechaCheckIn: 'desc' },
+        });
+        
+        // Filtrar solo reservas activas (excluir CANCELADA)
+        const reservasActivas = allReservas.filter(r => r.estado !== 'CANCELADA');
+        
+        res.json({ reservas: reservasActivas });
+    } catch (error) {
+        console.error('Error al obtener reservas:', error);
+        res.status(500).json({ error: 'Error al obtener reservas' });
+    }
+});
+
+// API: Obtener tipos de habitación para el calendario funcional
+router.get('/api/calendario/tipos-habitacion', async (req, res) => {
+    try {
+        const tiposHabitacion = await prisma.tipoHabitacion.findMany({
+            where: { activo: true },
+            include: {
+                Habitaciones: true
+            }
+        });
+        
+        console.log('=== API TIPOS HABITACIÓN ===');
+        console.log('Tipos encontrados:', tiposHabitacion.length);
+        tiposHabitacion.forEach(t => {
+            console.log(`  - ${t.nombre}: $${t.precioBase} (${t.Habitaciones.length} habitaciones)`);
+        });
+        
+        res.json({ tiposHabitacion });
+    } catch (error) {
+        console.error('Error al obtener tipos de habitación:', error);
+        res.status(500).json({ error: 'Error al obtener tipos de habitación' });
+    }
+});
+
 // API 1: Búsqueda de Habitaciones Disponibles
 router.get('/hoteleria/api/disponibilidad', async (req, res) => {
     try {
         const { checkIn, checkOut, adultos, ninos } = req.query;
+        
+        console.log('=== API DISPONIBILIDAD ===');
+        console.log('Params:', { checkIn, checkOut, adultos, ninos });
         
         // La lógica compleja está en el Repositorio
         const habitacionesDisponibles = await Repo.findAvailableRooms(
@@ -228,9 +342,27 @@ router.get('/hoteleria/api/disponibilidad', async (req, res) => {
             ninos
         );
 
+        console.log('Habitaciones encontradas:', habitacionesDisponibles.length);
+        
+        // Obtener todos los tipos de habitación con sus precios
+        const tiposHabitacion = await prisma.tipoHabitacion.findMany({
+            where: { activo: true },
+            select: {
+                id_tipoHab: true,
+                nombre: true,
+                capacidad: true,
+                precioBase: true
+            }
+        });
+
+        console.log('Tipos de habitación:', tiposHabitacion.length);
+        tiposHabitacion.forEach(t => {
+            console.log(`  - ${t.nombre}: $${t.precioBase}`);
+        });
+
         res.json({ 
-            habitaciones: habitacionesDisponibles
-            // No necesitamos devolver tiposHabitacion ya que están en la vista
+            habitacionesDisponibles: habitacionesDisponibles,
+            tiposHabitacion: tiposHabitacion
         });
 
     } catch (error) {

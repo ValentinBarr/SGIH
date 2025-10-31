@@ -178,22 +178,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const url = `/hoteleria/api/disponibilidad?checkIn=${checkIn}&checkOut=${checkOut}&adultos=${adultos}&ninos=${ninos}`;
+            console.log('Fetching:', url);
             const response = await fetch(url, { signal });
 
             if (!response.ok) throw new Error('Error al buscar disponibilidad');
             
-            const data = await response.json(); 
+            const data = await response.json();
+            console.log('Respuesta API:', data);
             
-            // Cachear la respuesta
-            cachedRooms = data.habitaciones;
+            // Cachear la respuesta (usar habitacionesDisponibles en vez de habitaciones)
+            const habitaciones = data.habitacionesDisponibles || data.habitaciones || [];
+            cachedRooms = habitaciones;
+
+            console.log('Habitaciones disponibles:', habitaciones.length);
 
             // Deseleccionar si la antigua habitación ya no está disponible
-            if (idHabHidden.value && !data.habitaciones.some(h => h.id_hab == idHabHidden.value)) {
+            if (idHabHidden.value && !habitaciones.some(h => h.id_hab == idHabHidden.value)) {
                  idHabHidden.value = '';
             }
 
             // Renderizar tarjetas
-            habitacionesCardsWrapper.innerHTML = renderRoomCards(data.habitaciones);
+            habitacionesCardsWrapper.innerHTML = renderRoomCards(habitaciones);
 
             // Recalcular el total
             calcularTotal();
@@ -252,6 +257,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // Inicializa la búsqueda al cargar la página
     updateNoches();
     buscarDisponibilidad();
+
+    // 🆕 Si viene un id_tipoHab desde el calendario, seleccionar automáticamente la primera habitación de ese tipo
+    const urlParams = new URLSearchParams(window.location.search);
+    const tipoHabParam = urlParams.get('id_tipoHab');
+    
+    if (tipoHabParam) {
+        // Esperar a que se carguen las habitaciones y seleccionar la primera del tipo indicado
+        const checkHabitacionesCargadas = setInterval(() => {
+            if (cachedRooms.length > 0) {
+                clearInterval(checkHabitacionesCargadas);
+                
+                // Buscar la primera habitación del tipo solicitado
+                const habitacionDelTipo = cachedRooms.find(h => h.TipoHabitacion.id_tipoHab == tipoHabParam);
+                
+                if (habitacionDelTipo) {
+                    // Seleccionar automáticamente esta habitación
+                    idHabHidden.value = habitacionDelTipo.id_hab;
+                    
+                    // Esperar un momento para que el DOM se actualice
+                    setTimeout(() => {
+                        const card = document.querySelector(`.room-card[data-id="${habitacionDelTipo.id_hab}"]`);
+                        if (card) {
+                            // Simular click en la tarjeta
+                            card.click();
+                            // Hacer scroll a la tarjeta seleccionada
+                            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }, 100);
+                }
+            }
+        }, 100);
+        
+        // Timeout de seguridad para limpiar el intervalo después de 5 segundos
+        setTimeout(() => clearInterval(checkHabitacionesCargadas), 5000);
+    }
     }
     
     // -------------------------------------------------------------------

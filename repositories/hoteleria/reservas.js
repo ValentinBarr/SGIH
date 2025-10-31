@@ -72,12 +72,31 @@ class ReservasRepository {
                     }
                 },
             },
-            orderBy: { fechaCheckIn: 'desc' },
+            orderBy: [
+                // Primero ordenar por estado: activas primero, canceladas al final
+                {
+                    estado: 'asc' // CANCELADA viene después de CHECKED_IN, CONFIRMADA, etc.
+                },
+                // Luego por fecha de check-in descendente
+                {
+                    fechaCheckIn: 'desc'
+                }
+            ],
             take: PAGE_SIZE,
             skip: (currentPage - 1) * PAGE_SIZE,
         });
 
-        return { reservas, totalPages, currentPage, totalReservas };
+        // Ordenar manualmente para poner CANCELADA al final
+        const reservasOrdenadas = reservas.sort((a, b) => {
+            // Si una es CANCELADA y la otra no, CANCELADA va al final
+            if (a.estado === 'CANCELADA' && b.estado !== 'CANCELADA') return 1;
+            if (a.estado !== 'CANCELADA' && b.estado === 'CANCELADA') return -1;
+            
+            // Si ambas son CANCELADA o ambas no lo son, ordenar por fecha
+            return new Date(b.fechaCheckIn) - new Date(a.fechaCheckIn);
+        });
+
+        return { reservas: reservasOrdenadas, totalPages, currentPage, totalReservas };
     }
 
     /**

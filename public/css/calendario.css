@@ -1,0 +1,1113 @@
+/* Sistema de Calendario de Disponibilidad Hotelera - Estilos */
+
+.calendario-hotelero {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Header */
+.calendario-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.calendario-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.5rem 0;
+}
+
+.calendario-subtitle {
+  font-size: 1.125rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Controles de navegación */
+.calendario-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.calendario-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.btn-nav {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1rem;
+}
+
+.btn-nav:hover {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-nav:active {
+  transform: translateY(0);
+}
+
+.periodo-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  min-width: 250px;
+  text-align: center;
+}
+
+.calendario-view-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-hoy {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-hoy:hover {
+  background-color: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-vista {
+  background-color: #f3f4f6;
+  color: #4b5563;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-vista:hover {
+  background-color: #e5e7eb;
+}
+
+.btn-vista.active {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+}
+
+/* Contenedor del calendario */
+.calendario-container {
+  background-color: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+/* Vista de Mes */
+.calendario-mes-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.dia-header {
+  text-align: center;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+}
+
+.calendario-mes-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+}
+
+.dia-celda {
+  background-color: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  min-height: 100px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.dia-celda:not(.vacio):hover {
+  background-color: #f3f4f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dia-celda.vacio {
+  background-color: transparent;
+  border: none;
+  cursor: default;
+}
+
+.dia-celda.hoy {
+  background-color: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.dia-celda.seleccionado {
+  border-color: #3b82f6;
+  border-width: 3px;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.dia-numero {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.dia-indicador {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin: 0.5rem auto;
+}
+
+.dia-disponibilidad {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+/* Vista de Semana */
+.calendario-semana {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1rem;
+}
+
+.semana-dia {
+  background-color: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.semana-dia:hover {
+  background-color: #f3f4f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.semana-dia.hoy {
+  background-color: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.semana-dia.seleccionado {
+  border-color: #3b82f6;
+  border-width: 3px;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.semana-dia-header {
+  text-align: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.semana-dia-nombre {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.semana-dia-numero {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.semana-disponibilidad {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tipo-resumen {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.tipo-indicador {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tipo-nombre-corto {
+  flex: 1;
+  color: #4b5563;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tipo-cantidad {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* Vista de Día */
+.calendario-dia {
+  padding: 1rem;
+}
+
+.dia-titulo {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 2rem 0;
+  text-align: center;
+}
+
+.dia-habitaciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Tarjetas de Habitación */
+.habitacion-card {
+  background-color: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  transition: all 0.3s;
+}
+
+.habitacion-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+  border-color: #3b82f6;
+}
+
+.habitacion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.habitacion-nombre {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  flex: 1;
+}
+
+.habitacion-precio {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #3b82f6;
+}
+
+.habitacion-info {
+  margin-bottom: 1rem;
+}
+
+.habitacion-capacidad {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.habitacion-capacidad i {
+  color: #3b82f6;
+}
+
+.habitacion-amenidades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.amenidad {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #f3f4f6;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.amenidad i {
+  color: #3b82f6;
+}
+
+.habitacion-disponibilidad {
+  margin-bottom: 1.5rem;
+}
+
+.disponibilidad-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.disponibilidad-info i {
+  color: #6b7280;
+}
+
+.disponibilidad-barra {
+  width: 100%;
+  height: 8px;
+  background-color: #e5e7eb;
+  border-radius: 1rem;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.disponibilidad-progreso {
+  height: 100%;
+  transition: width 0.3s;
+  border-radius: 1rem;
+}
+
+.disponibilidad-porcentaje {
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.btn-reservar {
+  width: 100%;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reservar:hover {
+  background-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn-reservar:active {
+  transform: translateY(0);
+}
+
+/* Sección de habitaciones disponibles */
+.habitaciones-section {
+  background-color: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.fecha-seleccionada-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 2rem 0;
+  text-align: center;
+}
+
+.habitaciones-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Leyenda */
+.calendario-leyenda {
+  background-color: #f9fafb;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.calendario-leyenda h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+}
+
+.leyenda-items {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.leyenda-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .calendario-semana {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .dia-habitaciones,
+  .habitaciones-container {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .calendario-hotelero {
+    padding: 1rem;
+  }
+  
+  .calendario-title {
+    font-size: 1.75rem;
+  }
+  
+  .calendario-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .calendario-nav {
+    justify-content: center;
+  }
+  
+  .calendario-view-buttons {
+    justify-content: center;
+  }
+  
+  .calendario-semana {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .calendario-mes-grid {
+    gap: 0.25rem;
+  }
+  
+  .dia-celda {
+    min-height: 80px;
+    padding: 0.5rem;
+  }
+  
+  .dia-numero {
+    font-size: 1rem;
+  }
+  
+  .dia-habitaciones,
+  .habitaciones-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .leyenda-items {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendario-semana {
+    grid-template-columns: 1fr;
+  }
+  
+  .periodo-title {
+    font-size: 1.125rem;
+    min-width: auto;
+  }
+  
+  .btn-vista {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* ====================================================================
+   ESTILOS DE MODALES DE RESERVA
+   ==================================================================== */
+
+.modal-reserva {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 1rem;
+  max-width: 700px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.modal-content-small {
+  max-width: 500px;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.modal-header h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.btn-cerrar-modal {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-cerrar-modal:hover {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+.form-reserva {
+  padding: 1.5rem;
+}
+
+.form-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.form-section:last-of-type {
+  border-bottom: none;
+}
+
+.form-section h4 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 1rem 0;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-control,
+.form-control-readonly {
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-control-readonly {
+  background-color: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+select.form-control {
+  cursor: pointer;
+}
+
+textarea.form-control {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.total-preview {
+  background-color: #f0f9ff;
+  border: 2px solid #3b82f6;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  text-align: center;
+  font-size: 1.125rem;
+  color: #1f2937;
+  margin-top: 1rem;
+}
+
+.total-preview span {
+  color: #3b82f6;
+  font-weight: 700;
+  font-size: 1.5rem;
+}
+
+.btn-secondary {
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.btn-secondary:hover {
+  background-color: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 2px solid #e5e7eb;
+  background-color: #f9fafb;
+  border-radius: 0 0 1rem 1rem;
+}
+
+.btn-cancelar,
+.btn-confirmar {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancelar {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.btn-cancelar:hover {
+  background-color: #e5e7eb;
+}
+
+.btn-confirmar {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.btn-confirmar:hover {
+  background-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn-confirmar:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Responsive para modales */
+@media (max-width: 768px) {
+  .modal-content {
+    max-width: 95%;
+    max-height: 95vh;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+  }
+
+  .btn-cancelar,
+  .btn-confirmar {
+    width: 100%;
+  }
+}
+
+/* ====================================================================
+   ESTILOS PARA CALENDARIO COMPACTO EN PÁGINA DE RESERVAS
+   ==================================================================== */
+
+.calendario-compacto {
+  max-width: 100%;
+}
+
+.calendario-compacto .calendario-header-compact {
+  margin-bottom: 1rem;
+}
+
+.calendario-compacto .calendario-controls {
+  margin-bottom: 1.5rem;
+}
+
+.calendario-compacto .periodo-title {
+  font-size: 1.25rem;
+  min-width: 200px;
+}
+
+.calendario-compacto .btn-nav,
+.calendario-compacto .btn-hoy,
+.calendario-compacto .btn-vista {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.calendario-compacto .calendario-container {
+  padding: 1.5rem;
+}
+
+.calendario-compacto .dia-celda {
+  min-height: 70px;
+  padding: 0.75rem;
+}
+
+.calendario-compacto .dia-numero {
+  font-size: 1.125rem;
+}
+
+.calendario-compacto .dia-disponibilidad {
+  font-size: 0.7rem;
+}
+
+.calendario-compacto .semana-dia {
+  padding: 0.75rem;
+}
+
+.calendario-compacto .semana-dia-numero {
+  font-size: 1.5rem;
+}
+
+.calendario-compacto .tipo-resumen {
+  font-size: 0.7rem;
+}
+
+.calendario-compacto .habitacion-card {
+  padding: 1.25rem;
+}
+
+.calendario-compacto .habitacion-nombre {
+  font-size: 1.125rem;
+}
+
+.calendario-compacto .habitacion-precio {
+  font-size: 1.25rem;
+}
+
+.calendario-compacto .calendario-leyenda {
+  padding: 1rem;
+  margin-top: 1.5rem;
+}
+
+.calendario-compacto .calendario-leyenda p {
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.calendario-compacto .leyenda-items {
+  gap: 1.5rem;
+}
+
+.calendario-compacto .leyenda-item {
+  font-size: 0.8rem;
+}
+
+.calendario-compacto .leyenda-color {
+  width: 12px;
+  height: 12px;
+}
+
+/* Ajustes responsive para calendario compacto */
+@media (max-width: 768px) {
+  .calendario-compacto .calendario-controls {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .calendario-compacto .periodo-title {
+    font-size: 1rem;
+  }
+
+  .calendario-compacto .dia-celda {
+    min-height: 60px;
+    padding: 0.5rem;
+  }
+}
+
+/* ====================================================================
+   ESTILOS PARA SELECCIÓN DE RANGO DE FECHAS
+   ==================================================================== */
+
+.dia-celda.rango-inicio {
+  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+  color: white;
+  font-weight: 700;
+  border: 2px solid #2563eb;
+  position: relative;
+}
+
+.dia-celda.rango-fin {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  color: white;
+  font-weight: 700;
+  border: 2px solid #059669;
+  position: relative;
+}
+
+.dia-celda.en-rango {
+  background-color: #dbeafe;
+  border: 1px solid #93c5fd;
+}
+
+.dia-celda.rango-inicio .dia-numero,
+.dia-celda.rango-fin .dia-numero {
+  color: white;
+  font-size: 1.5rem;
+}
+
+.dia-celda.rango-inicio .dia-disponibilidad,
+.dia-celda.rango-fin .dia-disponibilidad {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.etiqueta-fecha {
+  position: absolute;
+  top: 0.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #1f2937;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.habitacion-precio-container {
+  text-align: right;
+}
+
+.habitacion-precio-noche {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #3b82f6;
+}
+
+.habitacion-precio-total {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #10b981;
+  margin-top: 0.25rem;
+}
+
+/* Animación para días en rango */
+.dia-celda.en-rango {
+  animation: pulseRange 0.3s ease-out;
+}
+
+@keyframes pulseRange {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Responsive para rango */
+@media (max-width: 768px) {
+  .etiqueta-fecha {
+    font-size: 0.6rem;
+    padding: 0.1rem 0.4rem;
+  }
+
+  .habitacion-precio-noche {
+    font-size: 1rem;
+  }
+
+  .habitacion-precio-total {
+    font-size: 1.25rem;
+  }
+}
+
+/* ====================================================================
+   DÍAS PASADOS (NO SELECCIONABLES)
+   ==================================================================== */
+
+.dia-celda.dia-pasado {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.5;
+  position: relative;
+}
+
+.dia-celda.dia-pasado:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.dia-celda.dia-pasado .dia-numero {
+  color: #9ca3af;
+}
+
+.dia-celda.dia-pasado .dia-disponibilidad {
+  color: #9ca3af;
+}
+
+.dia-bloqueado {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  color: #ef4444;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.dia-celda.dia-pasado .dia-indicador {
+  opacity: 0.3;
+}
+
+/* Tooltip para días pasados */
+.dia-celda.dia-pasado::after {
+  content: 'Fecha no disponible';
+  position: absolute;
+  bottom: -2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #1f2937;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+
+.dia-celda.dia-pasado:hover::after {
+  opacity: 1;
+}

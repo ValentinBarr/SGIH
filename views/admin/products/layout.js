@@ -46,7 +46,6 @@ module.exports = ({ content }) => {
               <li><a class="sidebar__sublink" href="/hoteleria/reservas">Reservas</a></li>
               <li><a class="sidebar__sublink" href="/hoteleria/board">Check-in / Check-out</a></li>
               <li><a class="sidebar__sublink" href="/hoteleria/huespedes">Huéspedes</a></li>
-              <li><a class="sidebar__sublink" href="/hoteleria/calendario">Calendario</a></li>
 
               <li class="sidebar__divider">Configuración</li>              
               <li><a class="sidebar__sublink" href="/hoteleria/habitaciones">Habitaciones</a></li>
