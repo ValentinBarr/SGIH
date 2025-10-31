@@ -108,6 +108,7 @@ model FormaPago {
   nombre      String        @db.VarChar(80) // Efectivo, Transferencia, Cheque, etc.
   activo      Boolean       @default(true)
 
+  PagoReserva PagoReserva[] 
   Comprobantes Comprobante[]
   Pagos        Pago[] // <-- RELACIÓN AÑADIDA
 }
@@ -421,6 +422,7 @@ model Reserva {
   
   Huesped         Huesped @relation(fields: [id_huesped], references: [id_huesped])
   Habitacion      Habitacion @relation(fields: [id_hab], references: [id_hab])  // 🆕
+  PagoReserva PagoReserva[] 
   
   @@index([id_huesped])
   @@index([id_hab])       // 🆕
@@ -435,4 +437,38 @@ enum EstadoReserva {
   CHECKED_IN
   CHECKED_OUT
   CANCELADA
+}
+
+
+// ==========================================
+// 7. PAGOS (NUEVO)
+// ==========================================
+model PagoReserva {
+  id_pago       Int         @id @default(autoincrement())
+  id_reserva    Int         // A qué reserva pertenece este pago
+  id_fp         Int         // Qué forma de pago se usó
+  
+  monto         Decimal     @db.Decimal(10, 2) // Cuánto se pagó
+  fechaPago     DateTime    @default(now())   // Cuándo se pagó
+  estado        EstadoPago  @default(COMPLETADO)
+  referencia    String?     @db.VarChar(255)  // ID de transacción (Stripe, MercadoPago, etc.)
+  observaciones String?     @db.Text
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relaciones
+  Reserva       Reserva     @relation(fields: [id_reserva], references: [id_reserva], onDelete: Cascade)
+  FormaPago     FormaPago   @relation(fields: [id_fp], references: [id_fp])
+  
+  @@index([id_reserva])
+  @@index([id_fp])
+  @@map("pagos")
+}
+
+enum EstadoPago {
+  PENDIENTE
+  COMPLETADO
+  FALLIDO
+  REEMBOLSADO
 }

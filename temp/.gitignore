@@ -1,0 +1,4 @@
+# Ignorar todos los archivos en el directorio temp
+*
+# Pero mantener el directorio
+!.gitignore

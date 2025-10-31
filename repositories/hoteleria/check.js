@@ -7,41 +7,104 @@ class HabitacionRepository {
      * Obtiene el estado actual de todas las habitaciones para el tablero.
      * Incluye información de la reserva activa si la hay.
      */
-    async getStatusBoard() {
-        // 1. Obtener todas las habitaciones y su tipo
-        const habitaciones = await prisma.habitacion.findMany({
-            where: { activo: true },
-            include: { 
-                TipoHabitacion: true,
+async getStatusBoard() {
+    // 1. Definir fecha de hoy (solo fecha, sin hora) - Simplificado
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    console.log('🔍 DEBUG - Fecha de hoy (inicio):', today.toISOString());
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    console.log('🔍 DEBUG - Fecha de mañana (fin):', tomorrow.toISOString());
+    
+    // Verificar si hay reservas CONFIRMADAS para hoy
+    const reservasHoy = await prisma.reserva.findMany({
+        where: {
+            estado: EstadoReserva.CONFIRMADA,
+            fechaCheckIn: {
+                gte: today,
+                lt: tomorrow,
             },
-            orderBy: { numero: 'asc' },
-        });
+        },
+        include: { Huesped: true, Habitacion: true },
+    });
+    
+    console.log(`🔍 Total de reservas CONFIRMADAS para hoy: ${reservasHoy.length}`);
+    reservasHoy.forEach(r => {
+        console.log(`  - Reserva ${r.codigoReserva}: Habitación ${r.Habitacion?.numero}, Huésped: ${r.Huesped?.nombre} ${r.Huesped?.apellido}`);
+    });
 
-        // 2. Buscar reservas activas para cada habitación
-        const results = await Promise.all(habitaciones.map(async (hab) => {
-            // Buscamos la reserva que está CHECKED_IN o CONFIRMADA para hoy/mañana
+    // 2. Obtener todas las habitaciones
+    const habitaciones = await prisma.habitacion.findMany({
+        where: { activo: true },
+        include: { 
+            TipoHabitacion: true,
+        },
+        orderBy: { numero: 'asc' },
+    });
+
+    // 3. Para cada habitación, buscar su reserva activa o próxima
+    const results = await Promise.all(habitaciones.map(async (hab) => {
+        
+        // CASO 1: Habitación OCUPADA → Buscar reserva CHECKED_IN
+        if (hab.estado === EstadoHabitacion.OCUPADA) {
             const reservaActiva = await prisma.reserva.findFirst({
                 where: {
                     id_hab: hab.id_hab,
-                    estado: { in: [EstadoReserva.CHECKED_IN, EstadoReserva.CONFIRMADA] },
-                    // Si está CHECKED_IN, es la reserva actual.
-                    // Si está CONFIRMADA, es la próxima reserva (Check-in hoy/mañana)
+                    estado: EstadoReserva.CHECKED_IN,
                 },
                 include: { Huesped: true },
-                // Ordenar por check-in para priorizar la más próxima
-                orderBy: { fechaCheckIn: 'asc' }, 
             });
-
+            
             return {
                 ...hab,
-                // Si la reserva es CHECKED_IN, la habitación está OCUPADA actualmente.
-                // Si la reserva es CONFIRMADA, la habitación está DISPONIBLE, pero tiene cliente por llegar.
                 reservaActiva,
             };
-        }));
+        }
+        
+        // CASO 2: Habitación DISPONIBLE → Buscar si hay llegada HOY
+        if (hab.estado === EstadoHabitacion.DISPONIBLE) {
+            console.log(`🔍 Buscando reservas para habitación ${hab.numero} (ID: ${hab.id_hab})`);
+            
+            const reservaHoy = await prisma.reserva.findFirst({
+                where: {
+                    id_hab: hab.id_hab,
+                    estado: EstadoReserva.CONFIRMADA,
+                    // 🔥 CRÍTICO: Filtrar por fecha de hoy
+                    fechaCheckIn: {
+                        gte: today,
+                        lt: tomorrow,
+                    },
+                },
+                include: { Huesped: true },
+                orderBy: { fechaCheckIn: 'asc' },
+            });
+            
+            if (reservaHoy) {
+                console.log(`✅ Encontrada reserva para hoy en habitación ${hab.numero}:`, {
+                    codigoReserva: reservaHoy.codigoReserva,
+                    fechaCheckIn: reservaHoy.fechaCheckIn,
+                    huesped: `${reservaHoy.Huesped?.nombre} ${reservaHoy.Huesped?.apellido}`
+                });
+            } else {
+                console.log(`❌ No hay reservas para hoy en habitación ${hab.numero}`);
+            }
+            
+            return {
+                ...hab,
+                reservaActiva: reservaHoy, // Solo si llega HOY
+            };
+        }
+        
+        // CASO 3: Otras habitaciones (LIMPIEZA, MANTENIMIENTO)
+        return {
+            ...hab,
+            reservaActiva: null,
+        };
+    }));
 
-        return results;
-    }
+    return results;
+}
 
     /**
      * Cambia el estado interno de una habitación (ej: a LIMPIEZA o MANTENIMIENTO)

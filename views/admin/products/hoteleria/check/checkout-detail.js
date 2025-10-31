@@ -3,7 +3,7 @@ const { format, differenceInDays } = require('date-fns');
 const { es } = require('date-fns/locale');
 
 // === Helper de Fecha ===
-const formatDate = (dateStr, formatStr = 'dd/MM/yyyy') => {
+const formatDate = (dateStr, formatStr = 'dd/MM/yyyy HH:mm') => {
   if (!dateStr) return '';
   try {
     const date = new Date(dateStr);
@@ -15,73 +15,46 @@ const formatDate = (dateStr, formatStr = 'dd/MM/yyyy') => {
   }
 };
 
-// === Helper de Iconos de Comodidad ===
-const getComodidadIcon = (nombre) => {
-  const icons = {
-    'wi-fi': 'fas fa-wifi',
-    'tv': 'fas fa-tv',
-    'aire': 'fas fa-snowflake',
-    'minibar': 'fas fa-wine-glass-alt',
-    'jacuzzi': 'fas fa-hot-tub',
-    'cama': 'fas fa-bed',
-    'vista': 'fas fa-mountain',
-    'escritorio': 'fas fa-desktop',
-    'ducha': 'fas fa-shower',
-    'bañera': 'fas fa-bath',
-    'secador': 'fas fa-wind',
-  };
-  const lower = nombre ? nombre.toLowerCase() : '';
-  for (const key in icons) if (lower.includes(key)) return icons[key];
-  return 'fas fa-concierge-bell';
-};
-
 // === Helper de Moneda ===
 const formatCurrency = (value) =>
-  new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(
-    value || 0
-  );
+  new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(value || 0);
 
-// === VISTA PRINCIPAL ===
+// === Vista Principal ===
 module.exports = ({ reserva, formasPago = [] }) => {
   const huesped = reserva.Huesped;
   const habitacion = reserva.Habitacion;
   const tipoHab = habitacion?.TipoHabitacion;
-  const comodidades = tipoHab?.Comodidades || [];
 
   const noches = differenceInDays(
     new Date(reserva.fechaCheckOut),
     new Date(reserva.fechaCheckIn)
   );
 
-  // 🧾 Pagos reales de la reserva
+  // --- Pagos de la reserva ---
   const pagos = reserva.PagoReserva || [];
-  const totalPagado = pagos.reduce(
-    (acc, p) => acc + parseFloat(p.monto || 0),
-    0
-  );
+  const totalPagado = pagos.reduce((acc, p) => acc + parseFloat(p.monto || 0), 0);
   const saldoPendiente = Math.max(0, parseFloat(reserva.total) - totalPagado);
 
-  // === Renderizar lista de pagos ===
-  const pagosHtml =
-    pagos.length > 0
-      ? `
-        <table class="table is-striped is-fullwidth">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Forma de Pago</th>
-              <th>Monto</th>
-              <th>Referencia</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${pagos
-              .map(
-                (p) => `
+  // --- Tabla de pagos ---
+  const pagosHtml = pagos.length
+    ? `
+      <table class="table is-striped is-fullwidth">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Forma de Pago</th>
+            <th>Monto</th>
+            <th>Referencia</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${pagos
+            .map(
+              (p) => `
               <tr>
                 <td>${formatDate(p.fechaPago)}</td>
-                <td>${p.FormaPago?.nombre || 'N/A'}</td>
+                <td>${p.FormaPago?.nombre || p.FormaPago?.nombre_fp || 'N/A'}</td>
                 <td>${formatCurrency(p.monto)}</td>
                 <td>${p.referencia || '-'}</td>
                 <td>
@@ -94,30 +67,13 @@ module.exports = ({ reserva, formasPago = [] }) => {
                   } is-light">${p.estado}</span>
                 </td>
               </tr>`
-              )
-              .join('')}
-          </tbody>
-        </table>`
-      : '<p class="has-text-grey-light">No se registraron pagos todavía.</p>';
+            )
+            .join('')}
+        </tbody>
+      </table>`
+    : '<p class="has-text-grey-light">No se registraron pagos.</p>';
 
-  // === Renderizar comodidades ===
-  const comodidadesHtml =
-    comodidades.length > 0
-      ? comodidades
-          .map((tc) => {
-            const c = tc.Comodidad;
-            if (!c) return '';
-            return `<span class="tag is-info is-light is-rounded mr-1" title="${c.nombre}">
-                      <span class="icon is-small"><i class="${getComodidadIcon(
-                        c.nombre
-                      )}"></i></span>
-                      <span>${c.nombre}</span>
-                    </span>`;
-          })
-          .join('')
-      : '<p class="is-size-7 has-text-grey-light">Sin comodidades destacadas.</p>';
-
-  // === Render principal ===
+  // --- Render principal ---
   return layout({
     content: `
       <link rel="stylesheet" href="/css/checkin-detail.css">
@@ -128,17 +84,17 @@ module.exports = ({ reserva, formasPago = [] }) => {
             <i class="fas fa-home"></i> Tablero de Habitaciones
           </a>
           <span class="separator">›</span>
-          <span class="current">Confirmar Check-in</span>
+          <span class="current">Confirmar Check-out</span>
         </nav>
 
         <div class="detail-card">
-          <form method="POST" action="/hoteleria/checkin/${reserva.id_reserva}/confirm">
+          <form method="POST" action="/hoteleria/checkout/${reserva.id_reserva}/confirm">
             <div class="detail-header">
               <div class="detail-header-content">
                 <div>
                   <div class="detail-title">
-                    <i class="fas fa-door-open icon"></i>
-                    <h1>Confirmar Check-in</h1>
+                    <i class="fas fa-door-closed icon" style="color: var(--warning-color);"></i>
+                    <h1>Confirmar Check-out</h1>
                   </div>
                   <p class="detail-subtitle">
                     <i class="fas fa-bookmark"></i>
@@ -150,10 +106,10 @@ module.exports = ({ reserva, formasPago = [] }) => {
                     <i class="fas fa-arrow-left"></i>
                     Cancelar
                   </a>
-                  <button type="submit" class="btn-detail btn-detail--primary"
-                          id="btnConfirmarCheckin" ${saldoPendiente > 0 ? 'disabled' : ''}>
-                    <i class="fas fa-check-circle"></i>
-                    Confirmar Ingreso
+                  <button type="submit" class="btn-detail btn-detail--warning"
+                          id="btnConfirmarCheckout" ${saldoPendiente > 0 ? 'disabled' : ''}>
+                    <i class="fas fa-sign-out-alt"></i>
+                    Confirmar Salida
                   </button>
                 </div>
               </div>
@@ -165,7 +121,7 @@ module.exports = ({ reserva, formasPago = [] }) => {
                 <div class="detail-section">
                   <h3>
                     <i class="fas fa-bed section-icon"></i>
-                    Detalles de la Estancia
+                    Resumen de la Estancia
                   </h3>
                   <div class="info-item">
                     <span class="info-label">Habitación</span>
@@ -176,40 +132,31 @@ module.exports = ({ reserva, formasPago = [] }) => {
                     <span class="info-value">${tipoHab?.nombre || 'N/A'}</span>
                   </div>
                   <div class="info-item">
-                    <span class="info-label">Check-in</span>
-                    <span class="info-value">${formatDate(reserva.fechaCheckIn)}</span>
+                    <span class="info-label">Check-in Real</span>
+                    <span class="info-value">${formatDate(reserva.fechaCheckInReal || reserva.fechaCheckIn)}</span>
                   </div>
                   <div class="info-item">
-                    <span class="info-label">Check-out</span>
+                    <span class="info-label">Check-out Programado</span>
                     <span class="info-value">${formatDate(reserva.fechaCheckOut)}</span>
                   </div>
                   <div class="info-item">
-                    <span class="info-label">Noches</span>
+                    <span class="info-label">Noches Totales</span>
                     <span class="info-value">${noches}</span>
                   </div>
                   <div class="info-item">
-                    <span class="info-label">Capacidad</span>
-                    <span class="info-value">${tipoHab?.capacidad || 'N/A'} personas</span>
+                    <span class="info-label">Hora Actual</span>
+                    <span class="info-value" id="currentTime"></span>
                   </div>
-                  <div class="guest-tags">
-                    <span class="guest-tag guest-tag--adults">
-                      <i class="fas fa-user"></i> ${reserva.cantAdultos} Adultos
-                    </span>
-                    <span class="guest-tag guest-tag--children">
-                      <i class="fas fa-child"></i> ${reserva.cantNinos} Niños
-                    </span>
-                  </div>
-                  <div class="amenity-tags">${comodidadesHtml.replace(/tag is-info is-light is-rounded/g, 'amenity-tag')}</div>
                 </div>
 
-                <!-- DATOS DEL HUÉSPED -->
+                <!-- HUÉSPED PRINCIPAL -->
                 <div class="detail-section">
                   <h3>
                     <i class="fas fa-user-circle section-icon"></i>
-                    Datos del Huésped
+                    Huésped Principal
                   </h3>
                   <div class="guest-info">
-                    <div class="guest-avatar">
+                    <div class="guest-avatar" style="background: linear-gradient(135deg, var(--warning-color) 0%, #ff6b6b 100%);">
                       ${(huesped?.nombre?.charAt(0) || '') + (huesped?.apellido?.charAt(0) || '')}
                     </div>
                     <p class="guest-name">${huesped?.apellido || ''}, ${huesped?.nombre || ''}</p>
@@ -229,12 +176,12 @@ module.exports = ({ reserva, formasPago = [] }) => {
                   </div>
                 </div>
 
-                <!-- ESTADO DE PAGOS -->
+                <!-- RESUMEN FINAL DE PAGOS -->
                 <div class="payment-section">
                   <div class="payment-header">
                     <h3>
-                      <i class="fas fa-credit-card"></i>
-                      Estado de Pagos
+                      <i class="fas fa-receipt"></i>
+                      Resumen Final de Pagos
                     </h3>
                   </div>
                   <div class="payment-content">
@@ -266,8 +213,8 @@ module.exports = ({ reserva, formasPago = [] }) => {
                           `).join('')}
                         </tbody>
                       </table>
-                    ` : '<p class="text-center" style="color: #64748b; padding: 20px;">No se registraron pagos todavía.</p>'}
-                    
+                    ` : '<p class="text-center" style="color: #64748b; padding: 20px;">No se registraron pagos.</p>'}
+
                     <div class="payment-summary">
                       <div class="summary-grid">
                         <div class="summary-item">
@@ -279,22 +226,22 @@ module.exports = ({ reserva, formasPago = [] }) => {
                           <p class="summary-value summary-value--paid">${formatCurrency(totalPagado)}</p>
                         </div>
                         <div class="summary-item">
-                          <p class="summary-label">Saldo Pendiente</p>
+                          <p class="summary-label">Saldo Final</p>
                           <p class="summary-value summary-value--pending">${formatCurrency(saldoPendiente)}</p>
                         </div>
                       </div>
-                      
+
                       <div class="summary-actions">
                         <div>
                           ${saldoPendiente > 0 ? 
-                            '<div class="status-message status-message--warning"><i class="fas fa-exclamation-triangle"></i> El check-in se habilita cuando el saldo sea $0.</div>' :
-                            '<div class="status-message status-message--success"><i class="fas fa-check-circle"></i> ¡Perfecto! La reserva está completamente pagada.</div>'
+                            '<div class="status-message status-message--error"><i class="fas fa-exclamation-triangle"></i> El check-out se habilita solo cuando el saldo esté en $0.</div>' :
+                            '<div class="status-message status-message--success"><i class="fas fa-check-circle"></i> ¡Excelente! Todos los pagos están al día. Puede proceder con el check-out.</div>'
                           }
                         </div>
                         ${saldoPendiente > 0 ? `
                           <button class="btn-detail btn-detail--danger" id="btnRegistrarPago">
                             <i class="fas fa-dollar-sign"></i>
-                            Registrar Pago
+                            Pago Final
                           </button>
                         ` : `
                           <div class="text-center">
@@ -311,21 +258,21 @@ module.exports = ({ reserva, formasPago = [] }) => {
         </div>
       </div>
 
-      <!-- MODAL REGISTRAR PAGO -->
+      <!-- MODAL DE PAGO FINAL -->
       <div class="modal-overlay is-hidden" id="modalPago">
         <div class="modal-card">
-          <div class="modal-header">
+          <div class="modal-header" style="background: var(--warning-color);">
             <h3 class="modal-title">
-              <i class="fas fa-credit-card"></i>
-              Registrar Pago
+              <i class="fas fa-receipt"></i>
+              Pago Final - Check-out
             </h3>
             <button class="modal-close" aria-label="close">&times;</button>
           </div>
           <div class="modal-body">
             <div class="status-message status-message--warning mb-4">
-              <i class="fas fa-info-circle"></i>
+              <i class="fas fa-exclamation-triangle"></i>
               <div>
-                <strong>Saldo Pendiente:</strong> ${formatCurrency(saldoPendiente)}
+                <strong>Saldo Pendiente Final:</strong> ${formatCurrency(saldoPendiente)}
               </div>
             </div>
             
@@ -334,29 +281,29 @@ module.exports = ({ reserva, formasPago = [] }) => {
                 <label class="form-label">Forma de Pago</label>
                 <select class="form-select" name="id_fp" required>
                   <option value="">Seleccionar forma de pago...</option>
-                  ${formasPago.map((fp) => `<option value="${fp.id_fp}">${fp.nombre}</option>`).join('')}
+                  ${formasPago.map((fp) => `<option value="${fp.id_fp}">${fp.nombre || fp.nombre_fp}</option>`).join('')}
                 </select>
               </div>
               
               <div class="form-field">
-                <label class="form-label">Monto</label>
+                <label class="form-label">Monto Final</label>
                 <input class="form-input" type="number" name="monto" min="0" step="0.01" 
                        placeholder="0.00" value="${saldoPendiente}" required>
-                <p class="form-help">Ingrese el monto del pago (máximo: ${formatCurrency(saldoPendiente)})</p>
+                <p class="form-help">Monto exacto para completar el pago: ${formatCurrency(saldoPendiente)}</p>
               </div>
               
               <div class="form-field">
                 <label class="form-label">Referencia / Observaciones</label>
                 <input class="form-input" type="text" name="referencia" 
-                       placeholder="Ej: Comprobante #123, Transferencia MP-001, etc.">
-                <p class="form-help">Opcional: Agregue una referencia o nota sobre el pago</p>
+                       placeholder="Ej: Pago final check-out, Comprobante #123, etc.">
+                <p class="form-help">Opcional: Nota sobre el pago final</p>
               </div>
             </form>
           </div>
           <div class="modal-footer">
             <button class="btn-detail btn-detail--success" id="btnGuardarPago">
-              <i class="fas fa-save"></i>
-              Guardar Pago
+              <i class="fas fa-check-circle"></i>
+              Completar Pago
             </button>
             <button class="btn-detail btn-detail--outline" id="btnCancelarPago">
               <i class="fas fa-times"></i>
@@ -367,8 +314,27 @@ module.exports = ({ reserva, formasPago = [] }) => {
       </div>
 
       <script>
-        console.log('Inicializando modal de pago - Checkin Detail');
+        console.log('Inicializando modal de pago - Checkout Detail');
         
+        // Real-time clock update
+        function updateClock() {
+          const now = new Date();
+          const timeString = now.toLocaleTimeString('es-AR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          });
+          const clockElement = document.getElementById('currentTime');
+          if (clockElement) {
+            clockElement.textContent = timeString;
+          }
+        }
+        
+        // Update clock immediately and then every second
+        updateClock();
+        setInterval(updateClock, 1000);
+        
+        // Modal functionality
         const modal = document.getElementById('modalPago');
         const btnOpen = document.getElementById('btnRegistrarPago');
         const btnClose = modal?.querySelector('.modal-close');
@@ -390,6 +356,11 @@ module.exports = ({ reserva, formasPago = [] }) => {
           if (show) {
             modal.classList.remove('is-hidden');
             document.body.style.overflow = 'hidden';
+            // Focus on first input when modal opens
+            setTimeout(() => {
+              const firstInput = modal.querySelector('select[name="id_fp"]');
+              if (firstInput) firstInput.focus();
+            }, 300);
           } else {
             modal.classList.add('is-hidden');
             document.body.style.overflow = '';
@@ -401,7 +372,7 @@ module.exports = ({ reserva, formasPago = [] }) => {
           btnOpen.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Abriendo modal de pago');
+            console.log('Abriendo modal de pago final');
             toggleModal(true);
           });
         }
@@ -435,13 +406,13 @@ module.exports = ({ reserva, formasPago = [] }) => {
           });
         }
 
-        // Guardar pago
+        // Guardar pago final
         if (btnGuardar) {
           btnGuardar.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
             
-            console.log('Intentando guardar pago...');
+            console.log('Intentando guardar pago final...');
             
             const formData = new FormData(formPago);
             const data = Object.fromEntries(formData.entries());
@@ -465,7 +436,7 @@ module.exports = ({ reserva, formasPago = [] }) => {
 
             // Add loading state
             const originalHTML = btnGuardar.innerHTML;
-            btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+            btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
             btnGuardar.disabled = true;
 
             try {
@@ -484,7 +455,7 @@ module.exports = ({ reserva, formasPago = [] }) => {
 
               if (res.ok) {
                 const result = await res.json().catch(() => ({}));
-                console.log('Pago guardado exitosamente:', result);
+                console.log('Pago final guardado exitosamente:', result);
                 alert('✅ Pago registrado con éxito. Recargando página...');
                 setTimeout(() => {
                   location.reload();
@@ -513,7 +484,7 @@ module.exports = ({ reserva, formasPago = [] }) => {
           }
         });
         
-        console.log('Modal de pago inicializado correctamente');
+        console.log('Modal de pago final inicializado correctamente');
       </script>
     `,
   });

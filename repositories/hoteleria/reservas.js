@@ -1,19 +1,37 @@
+// repositories/hoteleria/reservas.js
 const { PrismaClient, EstadoReserva } = require('../../generated/prisma');
 const prisma = new PrismaClient();
-const { differenceInDays, format } = require('date-fns'); // Se agrega format para código de reserva
+const { differenceInDays, format } = require('date-fns');
 
 const PAGE_SIZE = 10;
 
 class ReservasRepository {
+  // ============================================================
+  // 📘 Helpers
+  // ============================================================
+  _calculateNights(checkIn, checkOut) {
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+    const noches = differenceInDays(end, start);
+    return end > start ? noches : 0;
+  }
 
-    /**
-     * Helper para calcular noches (duplicado para seguridad de backend)
-     */
-    _calculateNights(checkIn, checkOut) {
-        const start = new Date(checkIn);
-        const end = new Date(checkOut);
-        const noches = differenceInDays(end, start);
-        return noches > 0 ? noches : 0;
+  // ============================================================
+  // 📗 Lectura y filtros
+  // ============================================================
+  async getAll({ q, page = 1, estado, id_tipoHab, fechaDesde, fechaHasta } = {}) {
+    const currentPage = Number(page) || 1;
+    const where = {};
+
+    // 🔍 Filtro de búsqueda general
+    if (q) {
+      where.OR = [
+        { codigoReserva: { contains: q, mode: 'insensitive' } },
+        { Huesped: { nombre: { contains: q, mode: 'insensitive' } } },
+        { Huesped: { apellido: { contains: q, mode: 'insensitive' } } },
+        { Huesped: { documento: { contains: q, mode: 'insensitive' } } },
+      ];
     }
 
     // ====================================================================
@@ -99,236 +117,303 @@ class ReservasRepository {
         return { reservas: reservasOrdenadas, totalPages, currentPage, totalReservas };
     }
 
-    /**
-     * Obtiene los datos necesarios para los filtros y la nueva reserva
-     */
-    async getFormData() {
-        const tiposHabitacion = await prisma.tipoHabitacion.findMany({
-            where: { activo: true },
-            orderBy: { nombre: 'asc' },
-        });
-
-        const estadosReserva = Object.values(EstadoReserva);
-
-        const huespedes = await prisma.huesped.findMany({
-            orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
-        });
-
-        return { tiposHabitacion, estadosReserva, huespedes };
+    // 🏨 Filtro por tipo de habitación
+    if (id_tipoHab) {
+      where.Habitacion = { id_tipoHab: Number(id_tipoHab) };
     }
 
-    /**
-     * Obtiene una reserva por ID (para el modal de edición)
-     */
-    async getById(id_reserva) {
-        return prisma.reserva.findUnique({
-            where: { id_reserva: Number(id_reserva) },
-            include: { Huesped: true, Habitacion: true },
-        });
+    // 📅 Filtro por rango de fechas
+    const desdeDate = fechaDesde ? new Date(fechaDesde) : null;
+    const hastaDate = fechaHasta ? new Date(fechaHasta) : null;
+    if (desdeDate && !isNaN(desdeDate)) {
+      const startOfDay = new Date(
+        Date.UTC(desdeDate.getFullYear(), desdeDate.getMonth(), desdeDate.getDate())
+      );
+      where.fechaCheckIn = { ...where.fechaCheckIn, gte: startOfDay };
     }
-    
-    // ====================================================================
-    // MÉTODOS ESTÁTICOS DE DISPONIBILIDAD Y HUÉSPED (Usados por API)
-    // ====================================================================
+    if (hastaDate && !isNaN(hastaDate)) {
+      const endOfDay = new Date(
+        Date.UTC(hastaDate.getFullYear(), hastaDate.getMonth(), hastaDate.getDate(), 23, 59, 59, 999)
+      );
+      where.fechaCheckIn = { ...where.fechaCheckIn, lte: endOfDay };
+    }
 
-    /**
-     * Busca habitaciones disponibles para el rango de fechas y capacidad dados.
-     */
-    static async findAvailableRooms(checkIn, checkOut, adultos, ninos) {
-        const checkInDate = new Date(checkIn);
-        const checkOutDate = new Date(checkOut);
-        const capacidadTotal = parseInt(adultos) + parseInt(ninos);
-        
-        if (checkOutDate <= checkInDate || capacidadTotal <= 0 || isNaN(capacidadTotal)) {
-            return [];
-        }
+    // 📊 Conteo y paginación
+    const totalReservas = await prisma.reserva.count({ where });
+    const totalPages = Math.ceil(totalReservas / PAGE_SIZE);
 
-        // --- 1. IDs de Habitaciones Ocupadas (Lógica de Solapamiento) ---
-        const habitacionesOcupadas = await prisma.reserva.findMany({
-            where: {
-                estado: { notIn : [EstadoReserva.CHECKED_OUT, EstadoReserva.CANCELADA] }, 
-                fechaCheckIn: { lt: checkOutDate }, 
-                fechaCheckOut: { gt: checkInDate }, 
+    // 🧾 Listado de reservas
+    const reservas = await prisma.reserva.findMany({
+      where,
+      include: {
+        Huesped: true,
+        Habitacion: { include: { TipoHabitacion: true } },
+        PagoReserva: { include: { FormaPago: true } },
+      },
+      orderBy: { fechaCheckIn: 'desc' },
+      take: PAGE_SIZE,
+      skip: (currentPage - 1) * PAGE_SIZE,
+    });
+
+    return { reservas, totalPages, currentPage, totalReservas };
+  }
+
+  // ============================================================
+  // 📋 Datos para formularios (incluye Formas de Pago)
+  // ============================================================
+  async getFormData() {
+    const tiposHabitacion = await prisma.tipoHabitacion.findMany({
+      where: { activo: true },
+      include: { Comodidades: { include: { Comodidad: true } } },
+      orderBy: { nombre: 'asc' },
+    });
+
+    const estadosReserva = Object.values(EstadoReserva);
+
+    const huespedes = await prisma.huesped.findMany({
+      orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
+    });
+
+    // 💳 Traer formas de pago activas
+    const formasPago = await prisma.formaPago.findMany({
+      where: { activo: true },
+      orderBy: { nombre: 'asc' },
+    });
+
+    return { tiposHabitacion, estadosReserva, huespedes, formasPago };
+  }
+
+  // ============================================================
+  // 📘 Obtener reserva simple por ID
+  // ============================================================
+  async getById(id_reserva) {
+    return prisma.reserva.findUnique({
+      where: { id_reserva: Number(id_reserva) },
+      include: { Huesped: true, Habitacion: true },
+    });
+  }
+
+  // ============================================================
+  // 🧾 Detalles completos para Check-in / Check-out
+  // ============================================================
+  async getCheckinDetails(id_reserva) {
+    return prisma.reserva.findUnique({
+      where: { id_reserva: Number(id_reserva) },
+      include: {
+        Huesped: true,
+        Habitacion: {
+          include: {
+            TipoHabitacion: {
+              include: {
+                Comodidades: { include: { Comodidad: true } },
+              },
             },
-            select: { id_hab: true },
-        });
+          },
+        },
+        PagoReserva: { include: { FormaPago: true } }, // 💳 Pagos asociados
+      },
+    });
+  }
 
-        const idsOcupadas = habitacionesOcupadas.map(r => r.id_hab);
+  // ============================================================
+  // 🛏️ Habitaciones disponibles
+  // ============================================================
+  static async findAvailableRooms(checkIn, checkOut, adultos, ninos) {
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    const capacidadTotal = parseInt(adultos || '0') + parseInt(ninos || '0');
 
-        // --- 2. Habitaciones Disponibles con Capacidad ---
-        return prisma.habitacion.findMany({
-            where: {
-                id_hab: { notIn: idsOcupadas }, 
-                estado: { in: ['DISPONIBLE', 'LIMPIEZA'] }, 
-                activo: true,
-                TipoHabitacion: {
-                    capacidad: { gte: capacidadTotal }
-                }
-            },
-            include: { 
-                TipoHabitacion: true 
-            },
-            orderBy: [{ id_tipoHab: 'asc' }, { numero: 'asc' }]
-        });
+    if (
+      isNaN(checkInDate.getTime()) ||
+      isNaN(checkOutDate.getTime()) ||
+      checkOutDate <= checkInDate ||
+      capacidadTotal <= 0
+    ) {
+      console.warn('findAvailableRooms: Fechas inválidas o capacidad cero.');
+      return [];
     }
 
-    /**
-     * Crea un nuevo Huésped (para el modal).
-     */
-    static async createHuesped(data) {
-        const { nombre, apellido, documento, telefono, email } = data;
-        
-        return prisma.huesped.create({
-            data: {
-                nombre,
-                apellido,
-                documento: documento || null,
-                telefono: telefono || null,
-                email: email || null,
-            }
+    const checkInUTC = new Date(
+      Date.UTC(checkInDate.getFullYear(), checkInDate.getMonth(), checkInDate.getDate())
+    );
+    const checkOutUTC = new Date(
+      Date.UTC(checkOutDate.getFullYear(), checkOutDate.getMonth(), checkOutDate.getDate())
+    );
+
+    // 🏠 Buscar habitaciones ocupadas en el rango
+    const habitacionesOcupadas = await prisma.reserva.findMany({
+      where: {
+        estado: { notIn: [EstadoReserva.CHECKED_OUT, EstadoReserva.CANCELADA] },
+        fechaCheckIn: { lt: checkOutUTC },
+        fechaCheckOut: { gt: checkInUTC },
+      },
+      select: { id_hab: true },
+      distinct: ['id_hab'],
+    });
+
+    const idsOcupadas = habitacionesOcupadas.map((r) => r.id_hab).filter(Boolean);
+
+    return prisma.habitacion.findMany({
+      where: {
+        id_hab: { notIn: idsOcupadas },
+        estado: { in: ['DISPONIBLE', 'LIMPIEZA'] },
+        activo: true,
+        TipoHabitacion: { capacidad: { gte: capacidadTotal } },
+      },
+      include: {
+        TipoHabitacion: {
+          include: { Comodidades: { include: { Comodidad: true } } },
+        },
+      },
+      orderBy: [{ id_tipoHab: 'asc' }, { numero: 'asc' }],
+    });
+  }
+
+  // ============================================================
+  // ➕ Crear huésped
+  // ============================================================
+  static async createHuesped(data) {
+    const { nombre, apellido, documento, telefono, email } = data;
+    if (!nombre || !apellido) throw new Error('Nombre y apellido son requeridos.');
+    return prisma.huesped.create({
+      data: { nombre, apellido, documento, telefono, email },
+    });
+  }
+
+  // ============================================================
+  // 🧱 Crear reserva
+  // ============================================================
+  async create(data) {
+    const {
+      id_huesped,
+      id_hab,
+      fechaCheckIn,
+      fechaCheckOut,
+      cantAdultos,
+      cantNinos,
+      estado,
+      total,
+      observaciones,
+    } = data;
+
+    const huespedId = Number(id_huesped);
+    const habId = Number(id_hab);
+    const totalNum = Number(total);
+    const estadoFinal = estado || EstadoReserva.CONFIRMADA;
+
+    if (!huespedId || !habId || !fechaCheckIn || !fechaCheckOut || totalNum <= 0) {
+      throw new Error('Datos incompletos o inválidos para crear reserva.');
+    }
+
+    const checkIn = new Date(fechaCheckIn);
+    const checkOut = new Date(fechaCheckOut);
+    if (checkOut <= checkIn) throw new Error('Check-out debe ser posterior al check-in.');
+
+    return prisma.$transaction(async (tx) => {
+      const codigoReserva = 'R' + format(new Date(), 'yyyyMMddHHmmss');
+
+      const nuevaReserva = await tx.reserva.create({
+        data: {
+          codigoReserva,
+          id_huesped: huespedId,
+          id_hab: habId,
+          fechaCheckIn: checkIn,
+          fechaCheckOut: checkOut,
+          cantAdultos: Number(cantAdultos) || 1,
+          cantNinos: Number(cantNinos) || 0,
+          estado: estadoFinal,
+          total: totalNum,
+          observaciones: observaciones || null,
+        },
+      });
+
+      if (estadoFinal === EstadoReserva.CHECKED_IN) {
+        await tx.habitacion.update({
+          where: { id_hab: habId },
+          data: { estado: 'OCUPADA' },
         });
-    }
+      }
 
+      return nuevaReserva;
+    });
+  }
 
-    // ====================================================================
-    // MÉTODOS DE ESCRITURA (Transaccionales)
-    // ====================================================================
+  // ============================================================
+  // ✏️ Actualizar reserva
+  // ============================================================
+  async update(id_reserva, data) {
+    const { fechaCheckIn, fechaCheckOut, total, observaciones } = data;
+    const dataToUpdate = { updatedAt: new Date() };
 
-    /**
-     * Crea una nueva reserva (simplificada con id_hab).
-     */
-    async create(data) {
-        const {
-            id_huesped, id_hab, fechaCheckIn, fechaCheckOut, 
-            cantAdultos, cantNinos, estado, total, observaciones 
-        } = data;
+    if (fechaCheckIn) dataToUpdate.fechaCheckIn = new Date(fechaCheckIn);
+    if (fechaCheckOut) dataToUpdate.fechaCheckOut = new Date(fechaCheckOut);
+    if (total !== undefined) dataToUpdate.total = Number(total);
+    if (observaciones !== undefined) dataToUpdate.observaciones = observaciones;
 
-        const checkInDate = new Date(fechaCheckIn);
-        const checkOutDate = new Date(fechaCheckOut);
-        
-        // 💡 1. RE-VERIFICACIÓN CRÍTICA DE DISPONIBILIDAD (CRÍTICO)
-        // Se llama al método estático dentro de la instancia:
-        const habitacionesDisponibles = await ReservasRepository.findAvailableRooms(
-            fechaCheckIn, 
-            fechaCheckOut, 
-            cantAdultos, 
-            cantNinos
-        );
+    return prisma.reserva.update({
+      where: { id_reserva: Number(id_reserva) },
+      data: dataToUpdate,
+    });
+  }
 
-        if (!habitacionesDisponibles.some(h => h.id_hab === id_hab)) {
-             throw new Error("La habitación seleccionada ya no está disponible para el rango de fechas. Vuelva a verificar.");
-        }
+  // ============================================================
+  // 🔄 Actualizar estado de reserva y habitación
+  // ============================================================
+  async updateState(id_reserva, nuevoEstado) {
+    if (!Object.values(EstadoReserva).includes(nuevoEstado))
+      throw new Error(`Estado inválido: ${nuevoEstado}`);
 
-        // 💡 2. Transacción de Creación y Actualización de Habitación
-        return prisma.$transaction(async (tx) => {
-            
-            const codigoReserva = 'R' + format(new Date(), 'yyyyMMddHHmmss');
+    return prisma.$transaction(async (tx) => {
+      const reserva = await tx.reserva.findUnique({
+        where: { id_reserva: Number(id_reserva) },
+        select: { id_hab: true, estado: true },
+      });
+      if (!reserva) throw new Error('Reserva no encontrada.');
 
-            const newReserva = await tx.reserva.create({
-                data: {
-                    codigoReserva,
-                    id_huesped: id_huesped,
-                    id_hab: id_hab, 
-                    fechaCheckIn: checkInDate,
-                    fechaCheckOut: checkOutDate,
-                    cantAdultos: cantAdultos,
-                    cantNinos: cantNinos,
-                    estado: estado,
-                    total: total,
-                    observaciones: observaciones || null,
-                }
-            });
+      const updated = await tx.reserva.update({
+        where: { id_reserva: Number(id_reserva) },
+        data: {
+          estado: nuevoEstado,
+          updatedAt: new Date(),
+          fechaCheckInReal:
+            nuevoEstado === EstadoReserva.CHECKED_IN ? new Date() : undefined,
+          fechaCheckOutReal:
+            nuevoEstado === EstadoReserva.CHECKED_OUT ? new Date() : undefined,
+        },
+      });
 
-            // Si el estado inicial es CHECKED_IN, actualiza el estado de la habitación
-            if (estado === EstadoReserva.CHECKED_IN) {
-                await tx.habitacion.update({
-                    where: { id_hab: id_hab },
-                    data: { estado: 'OCUPADA' } 
-                });
-            }
+      let newState;
+      if (nuevoEstado === EstadoReserva.CHECKED_IN) newState = 'OCUPADA';
+      else if (
+        nuevoEstado === EstadoReserva.CHECKED_OUT ||
+        nuevoEstado === EstadoReserva.CANCELADA
+      )
+        newState = 'LIMPIEZA';
 
-            return newReserva;
-        }); 
-    }
-
-    /**
-     * Actualiza una reserva (usado por el modal de edición simple)
-     */
-    async update(id_reserva, data) {
-        const { fechaCheckIn, fechaCheckOut, total, observaciones } = data;
-        const dataToUpdate = { updatedAt: new Date() };
-
-        if (fechaCheckIn) dataToUpdate.fechaCheckIn = new Date(fechaCheckIn);
-        if (fechaCheckOut) dataToUpdate.fechaCheckOut = new Date(fechaCheckOut);
-        if (total !== undefined) dataToUpdate.total = Number(total);
-        if (observaciones !== undefined) dataToUpdate.observaciones = observaciones;
-
-        return prisma.reserva.update({
-            where: { id_reserva: Number(id_reserva) },
-            data: dataToUpdate,
+      if (newState)
+        await tx.habitacion.update({
+          where: { id_hab: reserva.id_hab },
+          data: { estado: newState },
         });
-    }
 
-    /**
-     * Cambia el estado de una reserva (usado por los botones de acción)
-     */
-    async updateState(id_reserva, nuevoEstado) {
-        return prisma.$transaction(async (tx) => {
-            const reserva = await tx.reserva.findUnique({
-                where: { id_reserva: Number(id_reserva) },
-                select: { id_hab: true, estado: true, fechaCheckInReal: true, fechaCheckOutReal: true },
-            });
-
-            if (!reserva) {
-                throw new Error("Reserva no encontrada.");
-            }
-
-            // Actualizar la reserva
-            const updatedReserva = await tx.reserva.update({
-                where: { id_reserva: Number(id_reserva) },
-                data: {
-                    estado: nuevoEstado,
-                    updatedAt: new Date(),
-                    fechaCheckInReal: (nuevoEstado === EstadoReserva.CHECKED_IN && !reserva.fechaCheckInReal) ? new Date() : undefined,
-                    fechaCheckOutReal: (nuevoEstado === EstadoReserva.CHECKED_OUT && !reserva.fechaCheckOutReal) ? new Date() : undefined,
-                },
-            });
-
-            // Lógica de actualización de estado de la habitación (Transaccional)
-            let newHabitacionState;
-            if (nuevoEstado === EstadoReserva.CHECKED_IN) {
-                newHabitacionState = 'OCUPADA';
-            } else if (nuevoEstado === EstadoReserva.CHECKED_OUT || nuevoEstado === EstadoReserva.CANCELADA) {
-                newHabitacionState = 'LIMPIEZA'; 
-            }
-            
-            if (newHabitacionState) {
-                await tx.habitacion.update({
-                    where: { id_hab: reserva.id_hab },
-                    data: { estado: newHabitacionState },
-                });
-            }
-
-            return updatedReserva;
-        });
-    }
+      return updated;
+    });
+  }
 }
 
-// ====================================================================
-// EXPORTACIÓN (SINGLETON) - Soluciona el TypeError
-// ====================================================================
-const repoInstance = new ReservasRepository();
+// ============================================================
+// 🚀 Exportación Singleton
+// ============================================================
+const repo = new ReservasRepository();
 
 module.exports = {
-    // Métodos de instancia (que usan 'this' y por eso necesitan bind)
-    getAll: repoInstance.getAll.bind(repoInstance),
-    getFormData: repoInstance.getFormData.bind(repoInstance),
-    getById: repoInstance.getById.bind(repoInstance),
-    create: repoInstance.create.bind(repoInstance),
-    update: repoInstance.update.bind(repoInstance),
-    updateState: repoInstance.updateState.bind(repoInstance),
-
-    // Métodos estáticos (que no usan 'this' y se exportan directamente)
-    findAvailableRooms: ReservasRepository.findAvailableRooms,
-    createHuesped: ReservasRepository.createHuesped,
+  getAll: repo.getAll.bind(repo),
+  getFormData: repo.getFormData.bind(repo),
+  getById: repo.getById.bind(repo),
+  create: repo.create.bind(repo),
+  update: repo.update.bind(repo),
+  updateState: repo.updateState.bind(repo),
+  getCheckinDetails: repo.getCheckinDetails.bind(repo),
+  findAvailableRooms: ReservasRepository.findAvailableRooms,
+  createHuesped: ReservasRepository.createHuesped,
 };

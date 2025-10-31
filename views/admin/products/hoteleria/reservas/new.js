@@ -8,25 +8,16 @@ const newHuespedModal = require('./modal-new')();
 // Función para obtener la fecha de hoy en formato YYYY-MM-DD
 const getToday = () => format(new Date(), 'yyyy-MM-dd');
 
-// --- Helper para íconos de comodidades (FontAwesome) ---
+// --- Helper de íconos (server) ---
 const getComodidadIcon = (nombre) => {
-    const icons = {
-        'wi-fi': 'fas fa-wifi',
-        'tv': 'fas fa-tv',
-        'aire': 'fas fa-snowflake',
-        'minibar': 'fas fa-wine-glass-alt',
-        'jacuzzi': 'fas fa-hot-tub',
-        'cama': 'fas fa-bed',
-        'vista': 'fas fa-mountain',
-        'escritorio': 'fas fa-desktop',
-    };
-    const lowerName = nombre ? nombre.toLowerCase() : '';
-    for (const key in icons) {
-        if (lowerName.includes(key)) {
-            return icons[key];
-        }
-    }
-    return 'fas fa-check-circle'; // Ícono por defecto
+  const icons = {
+    'wi-fi':'fas fa-wifi','tv':'fas fa-tv','aire':'fas fa-snowflake',
+    'minibar':'fas fa-wine-glass-alt','jacuzzi':'fas fa-hot-tub',
+    'cama':'fas fa-bed','vista':'fas fa-mountain','escritorio':'fas fa-desktop',
+  };
+  const lower = (nombre || '').toLowerCase();
+  for (const k in icons) if (lower.includes(k)) return icons[k];
+  return 'fas fa-check-circle';
 };
 
 /**

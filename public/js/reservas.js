@@ -1,6 +1,29 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // -------------------------------------------------------------------
+// 🔧 Helper para iconos de comodidades (lado cliente)
+// -------------------------------------------------------------------
+const getComodidadIcon = (nombre) => {
+    const icons = {
+        'wi-fi': 'fas fa-wifi',
+        'tv': 'fas fa-tv',
+        'aire': 'fas fa-snowflake',
+        'minibar': 'fas fa-wine-glass-alt',
+        'jacuzzi': 'fas fa-hot-tub',
+        'cama': 'fas fa-bed',
+        'vista': 'fas fa-mountain',
+        'escritorio': 'fas fa-desktop',
+    };
+    const lower = (nombre || '').toLowerCase();
+    for (const key in icons) {
+        if (lower.includes(key)) {
+            return icons[key];
+        }
+    }
+    return 'fas fa-check-circle'; // ícono por defecto
+};
+
+    // -------------------------------------------------------------------
     // 1. Elementos del DOM
     // -------------------------------------------------------------------
     const checkInInput = document.getElementById('fechaCheckIn_new');

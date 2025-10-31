@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- 2. LÓGICA PARA SUBMENÚS DESPLEGABLES (INVENTARIOS, COMPRAS) ---
+  // --- 2. LÓGICA PARA SUBMENÚS DESPLEGABLES (INVENTARIOS, COMPRAS, HOTELERIA) ---
   function initSubmenu(prefix) {
     const group = document.getElementById(`${prefix}-group`);
     if (!group) return;
@@ -68,11 +68,63 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Inicializar todos los submenús definidos
-  // Inicializar todos los submenús definidos
-  ['inventarios', 'compras', 'hoteleria', 'configuracion'].forEach(initSubmenu);
+  // --- 3. LÓGICA PARA SUBMENÚS ANIDADOS (SEGUNDO NIVEL) ---
+  function initNestedSubmenu(prefix) {
+    const group = document.getElementById(`${prefix}-group`);
+    if (!group) return;
 
-  // --- 3. LÓGICA PARA SIDEBAR EN MÓVIL (MENÚ HAMBURGUESA) ---
+    const toggleBtn = group.querySelector('.sidebar__chevron--nested');
+    const submenu = group.querySelector('.sidebar__submenu--nested');
+    const divider = group.querySelector('.sidebar__nested-divider');
+    const SUBMENU_STATE_KEY = `nested-submenu:${prefix}`;
+
+    if (!toggleBtn || !submenu || !divider) return;
+
+    const openSubmenu = () => {
+      submenu.hidden = false;
+      toggleBtn.classList.add('open');
+      toggleBtn.setAttribute('aria-expanded', 'true');
+      localStorage.setItem(SUBMENU_STATE_KEY, 'open');
+    };
+
+    const closeSubmenu = () => {
+      submenu.hidden = true;
+      toggleBtn.classList.remove('open');
+      toggleBtn.setAttribute('aria-expanded', 'false');
+      localStorage.setItem(SUBMENU_STATE_KEY, 'closed');
+    };
+
+    // Abrir si la página actual pertenece a este submenú anidado
+    const currentPath = window.location.pathname;
+    const isInNestedSection = submenu.querySelector(`a[href="${currentPath}"]`) !== null;
+    
+    if (isInNestedSection || localStorage.getItem(SUBMENU_STATE_KEY) === 'open') {
+      openSubmenu();
+    } else {
+      closeSubmenu();
+    }
+
+    // Click en todo el divider para abrir/cerrar
+    divider.addEventListener('click', (e) => {
+      e.preventDefault();
+      submenu.hidden ? openSubmenu() : closeSubmenu();
+    });
+
+    // Marcar el link activo
+    submenu.querySelectorAll('a.sidebar__sublink').forEach(link => {
+      if (link.href === window.location.href) {
+        link.classList.add('is-active');
+      }
+    });
+  }
+
+  // Inicializar todos los submenús de primer nivel
+  ['inventarios', 'compras', 'hoteleria'].forEach(initSubmenu);
+  
+  // Inicializar submenús anidados (segundo nivel)
+  ['configuracion'].forEach(initNestedSubmenu);
+
+  // --- 4. LÓGICA PARA SIDEBAR EN MÓVIL (MENÚ HAMBURGUESA) ---
   const mobileToggleBtn = document.getElementById('openMobile');
   const sidebar = document.querySelector('.sidebar');
 
