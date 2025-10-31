@@ -1,239 +1,159 @@
+// js/room-board.js
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Elementos del DOM ---
-    const roomBoard = document.getElementById('room-board');
-    const statusMessage = document.getElementById('status-message');
-    const filterButtons = document.querySelectorAll('.filter-btn');
+    
+    // -------------------------------------------------------------------
+    // 1. LÓGICA DE PESTAÑAS (Tabs)
+    // -------------------------------------------------------------------
+    const tabs = document.querySelectorAll('.tabs li');
+    const tabContents = document.querySelectorAll('.tab-content');
 
-    // --- Helpers (Duplicados de la vista) ---
-    const formatDate = (dateStr, formatStr = 'dd/MM') => {
-        if (!dateStr) return '';
-        const date = new Date(dateStr);
-        // No aplicamos offset aquí, asumimos que el backend devuelve fechas correctas
-        // date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
-        // Usamos Intl.DateTimeFormat para un formato más localizado si es necesario, o date-fns si está disponible
-        try {
-            // Si tienes date-fns cargado en el cliente:
-            // return dateFns.format(date, formatStr, { locale: dateFns.locale.es });
-            // Formato simple si no tienes date-fns en el cliente:
-             const day = String(date.getDate()).padStart(2, '0');
-             const month = String(date.getMonth() + 1).padStart(2, '0'); // Meses son 0-indexados
-             if (formatStr === 'dd/MM/yyyy') {
-                 const year = date.getFullYear();
-                 return `${day}/${month}/${year}`;
-             }
-             return `${day}/${month}`; // Default dd/MM
+    if (tabs.length > 0 && tabContents.length > 0) {
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetId = tab.dataset.tab; // ej: "tab-checkin"
+                const targetContent = document.getElementById(targetId);
 
-        } catch (e) {
-             console.warn("date-fns not available on client, using basic date formatting.");
-             const day = String(date.getDate()).padStart(2, '0');
-             const month = String(date.getMonth() + 1).padStart(2, '0');
-             return `${day}/${month}`;
-        }
-    };
+                // Quitar 'is-active' de todas las pestañas y ocultar todo el contenido
+                tabs.forEach(t => t.classList.remove('is-active'));
+                tabContents.forEach(tc => tc.classList.add('is-hidden'));
 
-    const isSameDay = (date1, date2) => {
-        return date1.getFullYear() === date2.getFullYear() &&
-               date1.getMonth() === date2.getMonth() &&
-               date1.getDate() === date2.getDate();
-    };
-
-    const statusMap = {
-        DISPONIBLE: { color: 'success', text: 'Disponible', icon: 'fa-bed' },
-        OCUPADA: { color: 'danger', text: 'Ocupada', icon: 'fa-clock' },
-        LIMPIEZA: { color: 'info', text: 'Limpieza', icon: 'fa-broom' },
-        MANTENIMIENTO: { color: 'dark', text: 'Mantenimiento', icon: 'fa-tools' },
-        LLEGADA_HOY: { color: 'link', text: 'Llegada Hoy', icon: 'fa-calendar-check' },
-        SALIDA_HOY: { color: 'warning', text: 'Salida Hoy', icon: 'fa-sign-out-alt' },
-    };
-
-    // --- Renderizado de Tarjeta (Versión JS) ---
-    const renderRoomCardJS = (hab) => {
-        // Asegúrate de que 'hab' tiene la misma estructura que en la vista,
-        // incluyendo hab.TipoHabitacion y hab.reservaActiva.Huesped
-        const { numero, piso, TipoHabitacion, estado, reservaActiva } = hab;
-        const tipo = TipoHabitacion?.nombre || 'N/A';
-
-        let primaryStatusKey = estado;
-        const today = new Date();
-        let isArrivalToday = false;
-        let isDepartureToday = false;
-
-        if (estado === 'DISPONIBLE' && reservaActiva && reservaActiva.estado === 'CONFIRMADA' && isSameDay(new Date(reservaActiva.fechaCheckIn), today)) {
-            primaryStatusKey = 'LLEGADA_HOY';
-            isArrivalToday = true;
-        } else if (estado === 'OCUPADA' && reservaActiva && isSameDay(new Date(reservaActiva.fechaCheckOut), today)) {
-            primaryStatusKey = 'SALIDA_HOY';
-            isDepartureToday = true;
-        }
-
-        const statusInfo = statusMap[primaryStatusKey] || { color: 'light', text: estado, icon: 'fa-question-circle' };
-        const colorClass = `is-${statusInfo.color}`;
-
-        let detailText = `Tipo: ${tipo}`;
-        let subStatusText = '';
-        let actionButton = '';
-
-        // Lógica de botones (igual que en la vista)
-        switch (primaryStatusKey) {
-            case 'LLEGADA_HOY':
-                detailText = `Huésped: ${reservaActiva.Huesped?.apellido || 'N/A'}`;
-                subStatusText = `Reserva: #${reservaActiva.codigoReserva}`;
-                actionButton = `
-                    <a href="/hoteleria/reservas/${reservaActiva.id_reserva}/checkin-detail" class="button is-small is-primary is-fullwidth">
-                        <span class="icon is-small"><i class="fas fa-sign-in-alt"></i></span>
-                        <span>Ver Check-in</span>
-                    </a>`;
-                break;
-            case 'SALIDA_HOY':
-            case 'OCUPADA':
-                 if (reservaActiva) {
-                    detailText = `Huésped: ${reservaActiva.Huesped?.apellido || 'N/A'}`;
-                    subStatusText = `Sale: ${formatDate(reservaActiva.fechaCheckOut)}`;
-                    actionButton = `
-                        <button class="button is-small is-warning is-fullwidth btn-action" data-action="checkout" data-hab-id="${hab.id_hab}">
-                            <span class="icon is-small"><i class="fas fa-sign-out-alt"></i></span>
-                            <span>Check-out</span>
-                        </button>`;
-                 }
-                 break;
-            case 'LIMPIEZA':
-                 actionButton = `
-                    <button class="button is-small is-success is-fullwidth btn-action" data-action="disponible" data-hab-id="${hab.id_hab}">
-                        <span class="icon is-small"><i class="fas fa-check"></i></span>
-                        <span>Marcar Disponible</span>
-                    </button>`;
-                break;
-            case 'DISPONIBLE':
-                 actionButton = `
-                    <button class="button is-small is-info is-light is-fullwidth btn-action" data-action="limpieza" data-hab-id="${hab.id_hab}">
-                        <span class="icon is-small"><i class="fas fa-broom"></i></span>
-                        <span>A Limpieza</span>
-                    </button>`;
-                break;
-            // MANTENIMIENTO no tiene botón por defecto
-        }
-
-        // Atributos de datos
-        const dataAttributes = `
-            data-status="${primaryStatusKey}"
-            data-arrival-today="${isArrivalToday}"
-            data-departure-today="${isDepartureToday}"
-        `;
-
-        // Generar el HTML de la tarjeta (igual que en la vista)
-        return `
-            <div class="column is-one-fifth-desktop is-one-quarter-tablet is-half-mobile room-card-wrapper" ${dataAttributes}>
-                <div class="card room-card">
-                    <header class="card-header ${colorClass}">
-                        <p class="card-header-title has-text-white">Hab. ${numero}</p>
-                        <span class="card-header-icon has-text-white">${tipo}</span>
-                    </header>
-                    <div class="card-content has-text-centered p-3">
-                        <span class="icon is-large my-1 ${colorClass}-dark"><i class="fas ${statusInfo.icon} fa-3x"></i></span>
-                        <p class="title is-6 ${colorClass}-dark mb-1">${statusInfo.text}</p>
-                        <p class="subtitle is-7 has-text-grey">${detailText}</p>
-                        ${subStatusText ? `<p class="is-size-7 has-text-grey-light">${subStatusText}</p>` : ''}
-                    </div>
-                    ${actionButton ? `<footer class="card-footer">${actionButton}</footer>` : ''}
-                </div>
-            </div>`;
-    };
-
-
-    // --- Lógica de Filtrado ---
-    const filterCards = (filter) => {
-        const roomCards = roomBoard.querySelectorAll('.room-card-wrapper');
-        roomCards.forEach(card => {
-            const status = card.dataset.status;
-            let show = false;
-            switch (filter) {
-                case 'TODOS': show = true; break;
-                case 'LLEGADA_HOY': show = status === 'LLEGADA_HOY'; break;
-                case 'SALIDA_HOY': show = status === 'SALIDA_HOY'; break;
-                case 'OCUPADA': show = status === 'OCUPADA' || status === 'SALIDA_HOY'; break;
-                case 'DISPONIBLE': show = status === 'DISPONIBLE'; break;
-                case 'LIMPIEZA': show = status === 'LIMPIEZA'; break;
-                default: show = status === filter;
-            }
-            card.style.display = show ? '' : 'none';
-        });
-        filterButtons.forEach(btn => btn.classList.toggle('is-active', btn.dataset.filter === filter));
-    };
-
-    // --- Lógica de Acciones (API) ---
-    const handleAction = async (e) => {
-        const button = e.target.closest('.btn-action');
-        if (!button) return; // Si no es un botón de acción, ignora
-
-        // Ya no necesitamos ignorar 'checkin' porque es un <a>
-        // if (button.dataset.action === 'checkin') return;
-
-        const habId = button.dataset.habId;
-        const action = button.dataset.action;
-        const cardWrapper = button.closest('.room-card-wrapper');
-
-        button.classList.add('is-loading');
-        statusMessage.classList.add('is-hidden');
-
-        try {
-            const response = await fetch('/hoteleria/board/action', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ habId, action }),
-            });
-
-            const result = await response.json();
-
-            if (response.ok && result.success && result.habitacion) {
-                // ✅ Éxito: Actualizar solo la tarjeta dinámicamente
-                const updatedCardHtml = renderRoomCardJS(result.habitacion); // Usar la función JS
-                if (cardWrapper) {
-                    cardWrapper.outerHTML = updatedCardHtml; // Reemplaza el HTML de la tarjeta
-                    // Re-aplicar filtro por si el estado cambió de categoría
-                    const activeFilter = document.querySelector('.filter-btn.is-active')?.dataset.filter || 'TODOS';
-                    filterCards(activeFilter);
-                } else {
-                     window.location.reload(); // Fallback si no encuentra el wrapper
+                // Activar la pestaña clickeada y mostrar su contenido
+                tab.classList.add('is-active');
+                if (targetContent) {
+                    targetContent.classList.remove('is-hidden');
                 }
-                showStatusMessage(result.message || 'Acción completada.', 'success'); // Mensaje de éxito
-
-            } else {
-                // Error devuelto por el servidor
-                showStatusMessage(result.message || 'Error desconocido al procesar la acción.', 'danger');
-            }
-
-        } catch (error) {
-            console.error('Error en la acción:', error);
-            showStatusMessage(`Error de red o conexión: ${error.message}`, 'danger');
-        } finally {
-            // Quitar estado de carga (el botón original ya no existe si se reemplazó el HTML)
-             const newButton = roomBoard.querySelector(`.room-card-wrapper[data-hab-id="${habId}"] .btn-action`);
-             if (newButton) newButton.classList.remove('is-loading');
-        }
-    };
-
-    // --- Mostrar Mensajes ---
-    const showStatusMessage = (message, type = 'info') => {
-        statusMessage.textContent = message;
-        statusMessage.className = `notification is-${type} mt-4`;
-        statusMessage.classList.remove('is-hidden');
-    };
-
-    // --- Asignar Event Listeners ---
-    if (roomBoard) { // Verificar que el tablero exista
-        roomBoard.addEventListener('click', handleAction);
-    } else {
-        console.error("Elemento #room-board no encontrado.");
+            });
+        });
     }
 
+    // -------------------------------------------------------------------
+    // 2. LÓGICA DE BÚSQUEDA (Check-in y Ocupadas)
+    // -------------------------------------------------------------------
+    const searchCheckinInput = document.getElementById('search-checkin-input');
+    const checkinListWrapper = document.getElementById('checkin-list-wrapper');
+    const searchCheckoutInput = document.getElementById('search-checkout-input');
+    const checkoutListWrapper = document.getElementById('checkout-list-wrapper');
 
-    filterButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            filterCards(button.dataset.filter);
+    // Función genérica para filtrar tarjetas (wrapper)
+    const filterCardList = (input, listWrapper) => {
+        const searchQuery = input.value.toLowerCase().trim();
+        // Busca las tarjetas (columnas)
+        const cards = listWrapper.querySelectorAll('.room-card-wrapper'); 
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const nombreHuesped = card.dataset.nombreHuesped || ''; 
+            const documentoHuesped = card.dataset.documentoHuesped || '';
+            
+            if (nombreHuesped.includes(searchQuery) || documentoHuesped.includes(searchQuery)) {
+                card.classList.remove('is-hidden'); // Mostrar
+                visibleCount++;
+            } else {
+                card.classList.add('is-hidden'); // Ocultar
+            }
         });
+        
+        // Manejar mensaje de "no hay resultados"
+        const noResultsMsg = listWrapper.querySelector('.no-results-message');
+        if (visibleCount === 0 && cards.length > 0) {
+            if (!noResultsMsg) {
+                listWrapper.insertAdjacentHTML('beforeend', '<div class="column is-full has-text-grey-light has-text-centered no-results-message">No hay coincidencias.</div>');
+            }
+        } else {
+            if (noResultsMsg) noResultsMsg.remove();
+        }
+    };
+
+    if (searchCheckinInput) {
+        searchCheckinInput.addEventListener('input', () => filterCardList(searchCheckinInput, checkinListWrapper));
+    }
+    if (searchCheckoutInput) {
+        searchCheckoutInput.addEventListener('input', () => filterCardList(searchCheckoutInput, checkoutListWrapper));
+    }
+
+    // --- (SECCIÓN DE FILTROS DEL TABLERO ELIMINADA) ---
+
+    // -------------------------------------------------------------------
+    // 3. LÓGICA DE ACCIONES (Botones de Check-out, Disponible, etc.)
+    // -------------------------------------------------------------------
+    const statusMessage = document.getElementById('status-message');
+
+    // Se usa document.body para que funcione en las 3 pestañas
+    document.body.addEventListener('click', async (event) => {
+        const button = event.target.closest('.btn-action');
+        if (!button) return; 
+
+        const action = button.dataset.action;
+        const habId = button.dataset.habId;
+        const reservaId = button.dataset.reservaId; 
+
+        let url = '';
+        let nuevoEstado = '';
+        let confirmMessage = '';
+        let method = 'POST'; 
+
+        switch (action) {
+            case 'checkout': 
+                if (!habId || !reservaId) return alert('Error: Faltan IDs para el Check-out.');
+                url = `/hoteleria/habitaciones/${habId}/checkout`; 
+                confirmMessage = `¿Confirmar Check-out para la habitación ${habId}?`;
+                break;
+            case 'disponible':
+                url = `/hoteleria/habitaciones/${habId}/cambiar-estado`;
+                nuevoEstado = 'DISPONIBLE';
+                confirmMessage = `¿Marcar habitación ${habId} como Disponible?`;
+                break;
+            case 'limpieza':
+                 url = `/hoteleria/habitaciones/${habId}/cambiar-estado`;
+                 nuevoEstado = 'LIMPIEZA';
+                 confirmMessage = `¿Marcar habitación ${habId} para Limpieza?`;
+                 break;
+            case 'mantenimiento':
+                 url = `/hoteleria/habitaciones/${habId}/cambiar-estado`;
+                 nuevoEstado = 'MANTENIMIENTO';
+                 confirmMessage = `¿Marcar habitación ${habId} en Mantenimiento?`;
+                 break;
+            default:
+                return; 
+        }
+
+        if (!confirm(confirmMessage)) return; 
+
+        button.classList.add('is-loading');
+        if (statusMessage) statusMessage.classList.add('is-hidden');
+
+        try {
+            const bodyData = nuevoEstado ? { nuevoEstado: nuevoEstado } : {};
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bodyData) 
+            });
+
+            if (!response.ok) {
+                 const errorText = await response.text();
+                 let errorMsg = `Error ${response.status}`;
+                 try {
+                     const errorData = JSON.parse(errorText);
+                     errorMsg = errorData.error || errorMsg;
+                 } catch (e) {}
+                 throw new Error(errorMsg);
+            }
+            
+            if (statusMessage) {
+                statusMessage.textContent = `Acción "${action}" realizada con éxito. Recargando...`;
+                statusMessage.className = 'notification is-success mt-4'; 
+            }
+            
+             setTimeout(() => { window.location.reload(); }, 1500);
+
+        } catch (error) {
+            console.error(`Error en acción ${action}:`, error);
+            if (statusMessage) {
+                statusMessage.textContent = `Error: ${error.message}`;
+                statusMessage.className = 'notification is-danger mt-4';
+            }
+            button.classList.remove('is-loading'); 
+        } 
     });
-
-    // Aplicar filtro inicial (TODOS)
-    filterCards('TODOS');
-
 });
