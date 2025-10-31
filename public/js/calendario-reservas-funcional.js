@@ -8,7 +8,7 @@
   // Cargar tipos de habitación reales desde la API
   async function cargarTiposHabitacionReales() {
     try {
-      const response = await fetch('/api/calendario/tipos-habitacion');
+      const response = await fetch('/hoteleria/reservas/api/tipos-habitacion');
       if (response.ok) {
         const data = await response.json();
         if (data.tiposHabitacion && data.tiposHabitacion.length > 0) {
@@ -18,7 +18,7 @@
             nombre: tipo.nombre,
             capacidad: tipo.capacidad,
             precio: parseFloat(tipo.precioBase),
-            total: [10, 15, 12, 8, 10][index] || 10, // Totales variados para simular diferentes cantidades
+            total: tipo.Habitaciones ? tipo.Habitaciones.length : 5, // Usar el número real de habitaciones
             amenidades: index === 0 || index === 3 ? ['wifi', 'desayuno', 'estacionamiento'] : 
                        index === 1 || index === 4 ? ['wifi', 'desayuno'] : 
                        ['wifi']
@@ -121,6 +121,9 @@
       estado.rangoSeleccion.seleccionando = true;
       estado.fechaSeleccionada = null;
       console.log('Inicio de rango:', fecha);
+      
+      // Limpiar formulario cuando se inicia nueva selección
+      limpiarHabitacionesDisponibles();
     } else {
       // Ya hay inicio, establecer fin
       if (fecha < estado.rangoSeleccion.inicio) {
@@ -133,11 +136,65 @@
       estado.rangoSeleccion.seleccionando = false;
       console.log('Rango completo:', estado.rangoSeleccion.inicio, '-', estado.rangoSeleccion.fin);
       
+      // Actualizar formulario con las fechas seleccionadas
+      actualizarFormularioFechas();
+      
       // Mostrar habitaciones disponibles para el rango
       mostrarHabitacionesDisponibles();
     }
     
     renderizarCalendario();
+  }
+
+  // Actualizar formulario con fechas seleccionadas
+  function actualizarFormularioFechas() {
+    if (!estado.rangoSeleccion.inicio || !estado.rangoSeleccion.fin) return;
+
+    const fechaCheckinDisplay = document.getElementById('fecha-checkin-display');
+    const fechaCheckoutDisplay = document.getElementById('fecha-checkout-display');
+    const nochesDisplay = document.getElementById('noches-display');
+    const fechasSeleccionadas = document.getElementById('fechas-seleccionadas');
+    
+    const fechaCheckinHidden = document.getElementById('fecha-checkin-hidden');
+    const fechaCheckoutHidden = document.getElementById('fecha-checkout-hidden');
+
+    if (fechaCheckinDisplay && fechaCheckoutDisplay && nochesDisplay) {
+      const noches = calcularNoches(estado.rangoSeleccion.inicio, estado.rangoSeleccion.fin);
+      
+      fechaCheckinDisplay.textContent = estado.rangoSeleccion.inicio.toLocaleDateString('es-AR');
+      fechaCheckoutDisplay.textContent = estado.rangoSeleccion.fin.toLocaleDateString('es-AR');
+      nochesDisplay.textContent = noches;
+      
+      // Mostrar la sección de fechas seleccionadas
+      if (fechasSeleccionadas) {
+        fechasSeleccionadas.style.display = 'block';
+      }
+
+      // Actualizar campos ocultos
+      if (fechaCheckinHidden) {
+        fechaCheckinHidden.value = estado.rangoSeleccion.inicio.toISOString().split('T')[0];
+      }
+      if (fechaCheckoutHidden) {
+        fechaCheckoutHidden.value = estado.rangoSeleccion.fin.toISOString().split('T')[0];
+      }
+    }
+  }
+
+  // Limpiar habitaciones disponibles
+  function limpiarHabitacionesDisponibles() {
+    const habitacionesDisponibles = document.getElementById('habitaciones-disponibles');
+    const totalReserva = document.getElementById('total-reserva');
+    const fechasSeleccionadas = document.getElementById('fechas-seleccionadas');
+    
+    if (habitacionesDisponibles) habitacionesDisponibles.style.display = 'none';
+    if (totalReserva) totalReserva.style.display = 'none';
+    if (fechasSeleccionadas) fechasSeleccionadas.style.display = 'none';
+    
+    // Limpiar campos ocultos
+    const habitacionSeleccionada = document.getElementById('habitacion-seleccionada');
+    const totalHidden = document.getElementById('total-hidden');
+    if (habitacionSeleccionada) habitacionSeleccionada.value = '';
+    if (totalHidden) totalHidden.value = '';
   }
 
   // Calcular número de noches entre dos fechas
@@ -395,13 +452,12 @@
 
   // Mostrar habitaciones disponibles para fecha seleccionada
   function mostrarHabitacionesDisponibles() {
-    const section = document.getElementById('habitaciones-section-funcional');
-    const titulo = document.getElementById('fecha-seleccionada-title-funcional');
-    const container = document.getElementById('habitaciones-container-funcional');
+    const habitacionesDisponibles = document.getElementById('habitaciones-disponibles');
+    const listaHabitaciones = document.getElementById('lista-habitaciones');
     
     // Verificar si hay un rango completo seleccionado
     if (!estado.rangoSeleccion.inicio || !estado.rangoSeleccion.fin) {
-      section.style.display = 'none';
+      if (habitacionesDisponibles) habitacionesDisponibles.style.display = 'none';
       return;
     }
     
@@ -411,40 +467,191 @@
     console.log('Noches:', noches);
     console.log('Total de tipos de habitación:', TIPOS_HABITACION.length);
     
-    titulo.innerHTML = `
-      <div style="text-align: center;">
-        <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">
-          Disponibilidad para tu estadía
-        </div>
-        <div style="font-size: 1rem; color: #6b7280;">
-          <i class="fas fa-calendar-check"></i> 
-          ${formatearFechaCorta(estado.rangoSeleccion.inicio)} - ${formatearFechaCorta(estado.rangoSeleccion.fin)}
-          <span style="margin-left: 1rem;">
-            <i class="fas fa-moon"></i> ${noches} ${noches === 1 ? 'noche' : 'noches'}
-          </span>
-        </div>
-      </div>
-    `;
+    // Obtener ocupantes para verificar disponibilidad
+    const adultos = document.getElementById('adultos')?.value || 1;
+    const ninos = document.getElementById('ninos')?.value || 0;
     
+    // Buscar habitaciones disponibles usando la API
+    buscarHabitacionesDisponibles(estado.rangoSeleccion.inicio, estado.rangoSeleccion.fin, adultos, ninos, noches);
+  }
+
+  // Buscar habitaciones disponibles usando la API
+  async function buscarHabitacionesDisponibles(checkIn, checkOut, adultos, ninos, noches) {
+    try {
+      const params = new URLSearchParams({
+        checkIn: checkIn.toISOString().split('T')[0],
+        checkOut: checkOut.toISOString().split('T')[0],
+        adultos: adultos,
+        ninos: ninos
+      });
+
+      const response = await fetch(`/hoteleria/api/disponibilidad?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        mostrarHabitacionesEnFormulario(data.habitacionesDisponibles, data.tiposHabitacion, noches);
+      } else {
+        console.error('Error al buscar habitaciones disponibles');
+      }
+    } catch (error) {
+      console.error('Error en la búsqueda de habitaciones:', error);
+    }
+  }
+
+  // Mostrar habitaciones en el formulario
+  function mostrarHabitacionesEnFormulario(habitacionesDisponibles, tiposHabitacion, noches) {
+    const habitacionesSection = document.getElementById('habitaciones-disponibles');
+    const listaHabitaciones = document.getElementById('lista-habitaciones');
+    
+    if (!listaHabitaciones) return;
+
     let html = '';
-    TIPOS_HABITACION.forEach((tipo, index) => {
-      console.log(`Procesando tipo ${index + 1}:`, tipo);
-      const disponibles = obtenerDisponibilidad(estado.rangoSeleccion.inicio, tipo.id);
-      const porcentaje = calcularPorcentaje(disponibles, tipo.total);
-      const color = obtenerColorDisponibilidad(porcentaje);
-      
-      console.log(`  - Disponibles: ${disponibles}/${tipo.total} (${porcentaje}%)`);
-      
-      html += renderizarTarjetaHabitacion(tipo, disponibles, porcentaje, color, noches);
+    
+    if (habitacionesDisponibles.length === 0) {
+      html = `
+        <div class="notification is-warning">
+          <i class="fas fa-exclamation-triangle"></i>
+          No hay habitaciones disponibles para las fechas seleccionadas.
+        </div>
+      `;
+    } else {
+      // Agrupar por tipo de habitación
+      const habitacionesPorTipo = {};
+      habitacionesDisponibles.forEach(hab => {
+        const tipoId = hab.TipoHabitacion.id_tipoHab;
+        if (!habitacionesPorTipo[tipoId]) {
+          habitacionesPorTipo[tipoId] = {
+            tipo: hab.TipoHabitacion,
+            habitaciones: []
+          };
+        }
+        habitacionesPorTipo[tipoId].habitaciones.push(hab);
+      });
+
+      // Renderizar cada tipo
+      Object.values(habitacionesPorTipo).forEach(grupo => {
+        const tipo = grupo.tipo;
+        const habitaciones = grupo.habitaciones;
+        const precioTotal = tipo.precioBase * noches;
+
+        html += `
+          <div class="habitacion-tipo-card mb-4">
+            <div class="card">
+              <div class="card-content p-4">
+                <div class="media mb-3">
+                  <div class="media-left">
+                    <figure class="image is-64x64">
+                      <i class="fas fa-bed fa-3x has-text-primary"></i>
+                    </figure>
+                  </div>
+                  <div class="media-content">
+                    <p class="title is-5 mb-2">${tipo.nombre}</p>
+                    <p class="subtitle is-6 has-text-grey">Capacidad: ${tipo.capacidad} personas</p>
+                  </div>
+                  <div class="media-right has-text-right">
+                    <p class="title is-4 has-text-primary mb-1">$${tipo.precioBase.toLocaleString()}</p>
+                    <p class="subtitle is-6 has-text-grey">por noche</p>
+                  </div>
+                </div>
+                
+                <div class="content mb-4">
+                  <div class="notification is-success is-light p-3 mb-3">
+                    <p class="has-text-weight-semibold mb-1">
+                      <i class="fas fa-check-circle has-text-success"></i>
+                      ${habitaciones.length} habitación(es) disponible(s)
+                    </p>
+                  </div>
+                  <div class="box has-background-primary-light p-3">
+                    <p class="is-size-5 has-text-weight-bold has-text-primary">
+                      Total por ${noches} noche(s): $${precioTotal.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="buttons">
+                  <button class="button is-primary is-large is-fullwidth btn-seleccionar-habitacion" 
+                          data-tipo-id="${tipo.id_tipoHab}"
+                          data-tipo-nombre="${tipo.nombre}"
+                          data-precio="${tipo.precioBase}"
+                          data-total="${precioTotal}"
+                          data-habitacion-id="${habitaciones[0].id_hab}">
+                    <span class="icon"><i class="fas fa-check"></i></span>
+                    <span>Seleccionar ${tipo.nombre}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    listaHabitaciones.innerHTML = html;
+    
+    if (habitacionesSection) {
+      habitacionesSection.style.display = 'block';
+    }
+
+    // Añadir event listeners a los botones de selección
+    document.querySelectorAll('.btn-seleccionar-habitacion').forEach(btn => {
+      btn.addEventListener('click', function() {
+        seleccionarHabitacion(this);
+      });
     });
+  }
+
+  // Seleccionar habitación y actualizar total
+  function seleccionarHabitacion(boton) {
+    const tipoId = boton.getAttribute('data-tipo-id');
+    const tipoNombre = boton.getAttribute('data-tipo-nombre');
+    const precio = parseFloat(boton.getAttribute('data-precio'));
+    const total = parseFloat(boton.getAttribute('data-total'));
+    const habitacionId = boton.getAttribute('data-habitacion-id');
+
+    // Actualizar campos ocultos
+    const habitacionSeleccionada = document.getElementById('habitacion-seleccionada');
+    const totalHidden = document.getElementById('total-hidden');
     
-    console.log('HTML generado, longitud:', html.length);
-    
-    container.innerHTML = html;
-    section.style.display = 'block';
-    
-    // Scroll suave a la sección
-    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (habitacionSeleccionada) habitacionSeleccionada.value = habitacionId;
+    if (totalHidden) totalHidden.value = total;
+
+    // Mostrar total
+    mostrarTotalReserva(tipoNombre, precio, total);
+
+    // Marcar botón como seleccionado
+    document.querySelectorAll('.btn-seleccionar-habitacion').forEach(b => {
+      b.classList.remove('is-success');
+      b.classList.add('is-primary');
+      b.innerHTML = `<span class="icon"><i class="fas fa-check"></i></span><span>Seleccionar ${b.getAttribute('data-tipo-nombre')}</span>`;
+    });
+
+    boton.classList.remove('is-primary');
+    boton.classList.add('is-success');
+    boton.innerHTML = `<span class="icon"><i class="fas fa-check-circle"></i></span><span>Seleccionado</span>`;
+
+    // Validar formulario
+    if (window.validarFormulario) {
+      window.validarFormulario();
+    }
+  }
+
+  // Mostrar total de la reserva
+  function mostrarTotalReserva(tipoNombre, precioPorNoche, total) {
+    const totalReserva = document.getElementById('total-reserva');
+    const totalAmount = document.getElementById('total-amount');
+    const precioPorNocheSpan = document.getElementById('precio-por-noche');
+    const cantidadNoches = document.getElementById('cantidad-noches');
+
+    if (totalAmount && precioPorNocheSpan && cantidadNoches) {
+      const noches = calcularNoches(estado.rangoSeleccion.inicio, estado.rangoSeleccion.fin);
+      
+      totalAmount.textContent = `$${total.toLocaleString()}`;
+      precioPorNocheSpan.textContent = `$${precioPorNoche.toLocaleString()}`;
+      cantidadNoches.textContent = noches;
+    }
+
+    if (totalReserva) {
+      totalReserva.style.display = 'block';
+    }
   }
 
   // Formatear fecha corta
@@ -790,6 +997,33 @@ function inicializar() {
         cambiarVista(this.getAttribute('data-vista'));
       });
     });
+
+    // Event listeners para el formulario integrado
+    const adultosInput = document.getElementById('adultos');
+    const ninosInput = document.getElementById('ninos');
+    const btnNuevoHuespedFuncional = document.getElementById('btn-nuevo-huesped-funcional');
+
+    // Actualizar habitaciones cuando cambien los ocupantes
+    if (adultosInput) {
+      adultosInput.addEventListener('change', () => {
+        if (estado.rangoSeleccion.inicio && estado.rangoSeleccion.fin) {
+          mostrarHabitacionesDisponibles();
+        }
+      });
+    }
+
+    if (ninosInput) {
+      ninosInput.addEventListener('change', () => {
+        if (estado.rangoSeleccion.inicio && estado.rangoSeleccion.fin) {
+          mostrarHabitacionesDisponibles();
+        }
+      });
+    }
+
+    // Botón para crear nuevo huésped en el formulario
+    if (btnNuevoHuespedFuncional) {
+      btnNuevoHuespedFuncional.addEventListener('click', abrirModalNuevoHuesped);
+    }
 
     // Event listeners para modales (solo si existen)
     const btnCerrarModal = document.getElementById('btn-cerrar-modal');

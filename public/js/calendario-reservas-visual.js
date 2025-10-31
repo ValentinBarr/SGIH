@@ -1,4 +1,4 @@
-// Calendario Visual de Reservas
+// Calendario Visual de Reservas - Solo Vista
 (function() {
   'use strict';
 
@@ -10,20 +10,33 @@
 
   const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
                  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const DIAS_SEMANA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
   // Cargar reservas desde la API
   async function cargarReservas() {
     try {
-      const response = await fetch('/api/calendario/reservas');
+      console.log('🔄 Cargando reservas desde API...');
+      const response = await fetch('/hoteleria/reservas/api/calendario');
+      
+      console.log('📡 Respuesta del servidor:', response.status, response.statusText);
+      
       if (response.ok) {
         const data = await response.json();
         estado.reservas = data.reservas || [];
-        console.log('Reservas cargadas:', estado.reservas.length);
+        console.log('✅ Reservas cargadas exitosamente:', estado.reservas.length);
+        
+        if (estado.reservas.length > 0) {
+          console.log('📋 Primera reserva de ejemplo:', estado.reservas[0]);
+        }
+        
         renderizarCalendario();
+      } else {
+        console.error('❌ Error en la respuesta:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('📄 Contenido del error:', errorText);
       }
     } catch (error) {
-      console.error('Error al cargar reservas:', error);
+      console.error('💥 Error al cargar reservas:', error);
     }
   }
 
@@ -78,7 +91,7 @@
     }
   }
 
-  // Renderizar vista de mes
+  // Renderizar vista de mes - Solo mostrar reservas
   function renderizarVistaMes() {
     const container = document.getElementById('calendario-container-visual');
     if (!container) return;
@@ -86,10 +99,12 @@
     const primerDia = new Date(estado.fechaActual.getFullYear(), estado.fechaActual.getMonth(), 1);
     const ultimoDia = new Date(estado.fechaActual.getFullYear(), estado.fechaActual.getMonth() + 1, 0);
     
+    // Ajustar para empezar en domingo (0)
     let diaSemanaInicio = primerDia.getDay();
-    diaSemanaInicio = diaSemanaInicio === 0 ? 6 : diaSemanaInicio - 1;
     
     let html = '<div class="calendario-mes">';
+    
+    // Header con días de la semana
     html += '<div class="calendario-mes-header">';
     DIAS_SEMANA.forEach(dia => {
       html += `<div class="dia-header">${dia}</div>`;
@@ -98,43 +113,60 @@
     
     html += '<div class="calendario-mes-grid">';
     
-    // Días del mes anterior
+    // Días del mes anterior (para completar la primera semana)
     const mesAnterior = new Date(estado.fechaActual.getFullYear(), estado.fechaActual.getMonth(), 0);
     for (let i = diaSemanaInicio - 1; i >= 0; i--) {
       const dia = mesAnterior.getDate() - i;
-      html += `<div class="dia-celda otro-mes">${dia}</div>`;
+      html += `<div class="dia-celda otro-mes">
+        <div class="dia-numero">${dia}</div>
+      </div>`;
     }
     
     // Días del mes actual
     const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    
     for (let dia = 1; dia <= ultimoDia.getDate(); dia++) {
       const fecha = new Date(estado.fechaActual.getFullYear(), estado.fechaActual.getMonth(), dia);
-      const esHoy = fecha.toDateString() === hoy.toDateString();
-      const reservasActivas = obtenerReservasPorFecha(fecha);
+      fecha.setHours(0, 0, 0, 0);
+      const esHoy = fecha.getTime() === hoy.getTime();
+      
+      // Obtener eventos del día
       const checkIns = obtenerCheckIns(fecha);
       const checkOuts = obtenerCheckOuts(fecha);
+      const reservasActivas = obtenerReservasPorFecha(fecha);
       
-      html += `<div class="dia-celda ${esHoy ? 'dia-hoy' : ''}" data-fecha="${fecha.toISOString()}">`;
+      html += `<div class="dia-celda ${esHoy ? 'dia-hoy' : ''}" data-fecha="${fecha.toISOString()}" onclick="mostrarDetallesDia('${fecha.toISOString()}')">`;
       html += `<div class="dia-numero">${dia}</div>`;
       
-      if (reservasActivas.length > 0 || checkIns.length > 0 || checkOuts.length > 0) {
+      // Mostrar eventos si los hay
+      if (checkIns.length > 0 || checkOuts.length > 0 || reservasActivas.length > 0) {
         html += '<div class="dia-eventos">';
         
+        // Check-ins del día
         if (checkIns.length > 0) {
-          html += `<div class="evento-badge checkin" title="${checkIns.length} Check-in(s)">
+          html += `<div class="evento-badge checkin" title="${checkIns.length} Check-in(s) hoy">
             <i class="fas fa-sign-in-alt"></i> ${checkIns.length}
           </div>`;
         }
         
+        // Check-outs del día
         if (checkOuts.length > 0) {
-          html += `<div class="evento-badge checkout" title="${checkOuts.length} Check-out(s)">
+          html += `<div class="evento-badge checkout" title="${checkOuts.length} Check-out(s) hoy">
             <i class="fas fa-sign-out-alt"></i> ${checkOuts.length}
           </div>`;
         }
         
-        if (reservasActivas.length > 0) {
-          html += `<div class="evento-badge ocupado" title="${reservasActivas.length} Habitación(es) ocupada(s)">
-            <i class="fas fa-bed"></i> ${reservasActivas.length}
+        // Habitaciones ocupadas (sin contar check-outs del mismo día)
+        const ocupadas = reservasActivas.filter(r => {
+          const checkOutFecha = new Date(r.fechaCheckOut);
+          checkOutFecha.setHours(0, 0, 0, 0);
+          return checkOutFecha.getTime() !== fecha.getTime();
+        });
+        
+        if (ocupadas.length > 0) {
+          html += `<div class="evento-badge ocupado" title="${ocupadas.length} habitación(es) ocupada(s)">
+            <i class="fas fa-bed"></i> ${ocupadas.length}
           </div>`;
         }
         
@@ -334,16 +366,109 @@
     actualizarTituloPeriodo();
   }
 
+  // Mostrar detalles del día seleccionado
+  function mostrarDetallesDia(fechaISO) {
+    const fecha = new Date(fechaISO);
+    const checkIns = obtenerCheckIns(fecha);
+    const checkOuts = obtenerCheckOuts(fecha);
+    const reservasActivas = obtenerReservasPorFecha(fecha);
+    
+    const habitacionesSection = document.getElementById('habitaciones-section-visual');
+    const fechaTitleElement = document.getElementById('fecha-seleccionada-title-visual');
+    const habitacionesContainer = document.getElementById('habitaciones-container-visual');
+    
+    if (!habitacionesSection || !fechaTitleElement || !habitacionesContainer) return;
+    
+    // Actualizar título
+    fechaTitleElement.textContent = formatearFechaLegible(fecha);
+    
+    // Generar contenido
+    let html = '';
+    
+    if (checkIns.length === 0 && checkOuts.length === 0 && reservasActivas.length === 0) {
+      html = '<div class="no-eventos"><i class="fas fa-calendar-day"></i> No hay eventos para este día</div>';
+    } else {
+      // Check-ins
+      if (checkIns.length > 0) {
+        html += '<div class="eventos-grupo">';
+        html += '<h5 class="eventos-titulo"><i class="fas fa-sign-in-alt"></i> Check-ins del día</h5>';
+        checkIns.forEach(reserva => {
+          html += `<div class="evento-item checkin">
+            <div class="evento-info">
+              <strong>${reserva.Huesped?.apellido}, ${reserva.Huesped?.nombre}</strong>
+              <span class="evento-detalle">Habitación ${reserva.Habitacion?.numero} - ${reserva.codigoReserva}</span>
+            </div>
+          </div>`;
+        });
+        html += '</div>';
+      }
+      
+      // Check-outs
+      if (checkOuts.length > 0) {
+        html += '<div class="eventos-grupo">';
+        html += '<h5 class="eventos-titulo"><i class="fas fa-sign-out-alt"></i> Check-outs del día</h5>';
+        checkOuts.forEach(reserva => {
+          html += `<div class="evento-item checkout">
+            <div class="evento-info">
+              <strong>${reserva.Huesped?.apellido}, ${reserva.Huesped?.nombre}</strong>
+              <span class="evento-detalle">Habitación ${reserva.Habitacion?.numero} - ${reserva.codigoReserva}</span>
+            </div>
+          </div>`;
+        });
+        html += '</div>';
+      }
+      
+      // Habitaciones ocupadas
+      const ocupadas = reservasActivas.filter(r => {
+        const checkOutFecha = new Date(r.fechaCheckOut);
+        checkOutFecha.setHours(0, 0, 0, 0);
+        return checkOutFecha.getTime() !== fecha.getTime();
+      });
+      
+      if (ocupadas.length > 0) {
+        html += '<div class="eventos-grupo">';
+        html += '<h5 class="eventos-titulo"><i class="fas fa-bed"></i> Habitaciones ocupadas</h5>';
+        ocupadas.forEach(reserva => {
+          const checkIn = new Date(reserva.fechaCheckIn);
+          const checkOut = new Date(reserva.fechaCheckOut);
+          const noches = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+          
+          html += `<div class="evento-item ocupado">
+            <div class="evento-info">
+              <strong>${reserva.Huesped?.apellido}, ${reserva.Huesped?.nombre}</strong>
+              <span class="evento-detalle">Habitación ${reserva.Habitacion?.numero} - ${reserva.codigoReserva}</span>
+              <span class="evento-fechas">${formatearFecha(reserva.fechaCheckIn)} - ${formatearFecha(reserva.fechaCheckOut)} (${noches} noches)</span>
+            </div>
+          </div>`;
+        });
+        html += '</div>';
+      }
+    }
+    
+    habitacionesContainer.innerHTML = html;
+    habitacionesSection.style.display = 'block';
+  }
+  
+  // Formatear fecha simple
+  function formatearFecha(fechaStr) {
+    const fecha = new Date(fechaStr);
+    return `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
+  }
+  
+  // Hacer la función global para que pueda ser llamada desde el HTML
+  window.mostrarDetallesDia = mostrarDetallesDia;
+
   // Inicializar
   function inicializar() {
     // Verificar si el contenedor existe
     const container = document.getElementById('calendario-container-visual');
     if (!container) {
-      console.log('Calendario visual: contenedor no encontrado');
+      console.log('❌ Calendario visual: contenedor no encontrado');
       return;
     }
 
-    console.log('Inicializando calendario visual...');
+    console.log('🚀 Inicializando calendario visual...');
+    console.log('📦 Contenedor encontrado:', container);
     
     // Botones de navegación
     const btnPrev = document.getElementById('btn-prev-visual');
@@ -396,10 +521,17 @@
     cargarReservas();
   }
 
-  // Inicializar cuando el DOM esté listo
+  // Exponer funciones globales
+  window.calendarioVisualReservas = {
+    inicializar: inicializar,
+    cargarReservas: cargarReservas
+  };
+
+  // Auto-inicializar cuando el DOM esté listo
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', inicializar);
   } else {
     inicializar();
   }
+
 })();

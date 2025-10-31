@@ -259,7 +259,6 @@ return layout({
             <div class="room-board-header">
               <div>
                 <h1 class="room-board-title">
-                  <i class="fas fa-hotel"></i>
                   Gestión Diaria
                 </h1>
                 <p class="room-board-subtitle">

@@ -1,6 +1,6 @@
 const layout = require('../../layout');
 
-module.exports = ({ dep, grid, movimientos, productos, tiposComprobantes, pagination, error }) => {
+module.exports = ({ dep, grid, movimientos, productos, tiposComprobantes, tiposMovimientos, pagination, error }) => {
   const totalProds = pagination?.total || grid.length;
   const bajos = grid.filter(r => r.estado === 'Bajo').length;
   const ultimosMovs = movimientos.length;
@@ -12,6 +12,13 @@ module.exports = ({ dep, grid, movimientos, productos, tiposComprobantes, pagina
       <section class="section">
         <div class="container is-max-desktop"> 
           
+        ${error ? `
+            <div class="notification is-danger is-light mb-5">
+              <button class="delete"></button>
+              <strong>Error al registrar:</strong> ${error}
+            </div>
+          ` : ''}
+
           <div class="box p-5 mb-6 has-background-white">
             <div class="level is-mobile mb-4">
               <div class="level-left">
@@ -40,16 +47,10 @@ module.exports = ({ dep, grid, movimientos, productos, tiposComprobantes, pagina
 
             <div class="buttons is-centered">
               <button 
-                class="button is-success is-large has-text-weight-bold"
-                onclick="document.getElementById('entradaModal').classList.add('is-active')">
-                <span class="icon"><i class="fas fa-arrow-alt-circle-down"></i></span>
-                <span>Registrar Entrada</span>
-              </button>
-              <button 
-                class="button is-danger is-large has-text-weight-bold"
-                onclick="document.getElementById('salidaModal').classList.add('is-active')">
-                <span class="icon"><i class="fas fa-arrow-alt-circle-up"></i></span>
-                <span>Registrar Salida</span>
+                class="button is-primary is-large has-text-weight-bold"
+                onclick="abrirModalMovimiento()">
+                <span class="icon"><i class="fas fa-exchange-alt"></i></span>
+                <span>Registrar Movimiento</span>
               </button>
               <a href="/inventarios/depositos/${dep.id_dep}/parametros" 
                 class="button is-info is-large has-text-weight-bold">
@@ -202,57 +203,100 @@ module.exports = ({ dep, grid, movimientos, productos, tiposComprobantes, pagina
 
           </div>
 
-          <div class="modal" id="entradaModal">
+          <!-- Modal Unificado de Movimientos -->
+          <div class="modal" id="movimientoModal">
             <div class="modal-background"></div>
             <div class="modal-card">
-              <header class="modal-card-head has-background-success-light">
-                <p class="modal-card-title has-text-success-dark">
-                  <span class="icon mr-2"><i class="fas fa-arrow-alt-circle-down"></i></span>
-                  Registrar Entrada
+              <header class="modal-card-head has-background-primary-light">
+                <p class="modal-card-title has-text-primary-dark">
+                  <span class="icon mr-2"><i class="fas fa-exchange-alt"></i></span>
+                  Registrar Movimiento
                 </p>
-                <button class="delete" aria-label="close" onclick="document.getElementById('entradaModal').classList.remove('is-active')"></button>
+                <button class="delete" aria-label="close" onclick="cerrarModalMovimiento()"></button>
               </header>
               <section class="modal-card-body">
-                <form method="POST" action="/inventarios/depositos/${dep.id_dep}/entradas">
+                <form method="POST" action="/inventarios/depositos/${dep.id_dep}/movimientos" id="formMovimiento">
+                  
+                  <!-- Selector de Tipo de Movimiento -->
+                  <div class="field">
+                    <label class="label">Tipo de Movimiento *</label>
+                    <div class="control">
+                      <div class="select is-fullwidth is-rounded">
+                        <select name="id_tipoMov" id="tipoMovSelect" required onchange="cambiarTipoMovimiento()">
+                          <option value="">Seleccione un tipo de movimiento</option>
+                          ${tiposMovimientos && tiposMovimientos.length ? tiposMovimientos.map(tm => `
+                            <option value="${tm.id_tipoMov}" data-direccion="${tm.direccion}">
+                              ${tm.direccion === 'IN' ? '📥' : '📤'} ${tm.nombre}
+                            </option>
+                          `).join('') : '<option value="">No hay tipos de movimientos disponibles</option>'}
+                        </select>
+                      </div>
+                    </div>
+                    <p class="help" id="tipoMovHelp">Seleccione el tipo de movimiento que desea registrar</p>
+                  </div>
+
+                  <!-- Tipo de Comprobante (solo para entradas) -->
+                  <div class="field" id="tipoCompField" style="display: none;">
+                    <label class="label">Tipo de Comprobante</label>
+                    <div class="control">
+                      <div class="select is-fullwidth is-rounded">
+                        <select name="id_tipoComp" id="tipoCompSelect">
+                          <option value="">Sin comprobante</option>
+                          ${tiposComprobantes && tiposComprobantes.length ? tiposComprobantes.map(tc => `
+                            <option value="${tc.id_tipoComp}">${tc.nombre_tipoComp}</option>
+                          `).join('') : ''}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Observación -->
                   <div class="field">
                     <label class="label">Observación</label>
                     <div class="control">
                       <input type="text" name="observacion" class="input is-rounded" placeholder="Detalle u observación opcional">
                     </div>
                   </div>
+
                   <hr>
-                  <h4 class="title is-6 mb-3">Productos a Ingresar:</h4>
-                  <div id="entradaProductosContainer">
-                    <div class="field is-grouped producto-row mb-3">
-                      <div class="control is-expanded">
-                        <div class="select is-fullwidth is-rounded">
-                          <select name="producto_1" required>
-                            ${productos.map(p => `<option value="${p.id_prodDep}">${p.Producto.nombre_prod}</option>`).join('')}
-                          </select>
+
+                  <!-- Productos -->
+                  <div id="productosSection" style="display: none;">
+                    <h4 class="title is-6 mb-3" id="productosTitle">Productos:</h4>
+                    <div id="productosContainer">
+                      <div class="field is-grouped producto-row mb-3">
+                        <div class="control is-expanded">
+                          <div class="select is-fullwidth is-rounded">
+                            <select name="producto_1" required onchange="actualizarOpcionesProductos(); validarFormulario();">
+                              <option value="">Seleccione un producto</option>
+                              ${productos.map(p => `<option value="${p.id_prodDep}">${p.Producto.nombre_prod}</option>`).join('')}
+                            </select>
+                          </div>
+                        </div>
+                        <div class="control">
+                          <input type="number" name="cantidad_1" min="1" step="any" class="input is-rounded" placeholder="Cantidad" required oninput="validarFormulario()">
+                        </div>
+                        <div class="control">
+                          <button type="button" class="button is-danger is-light removeBtn is-rounded" title="Eliminar producto">
+                            <span class="icon"><i class="fas fa-times"></i></span>
+                          </button>
                         </div>
                       </div>
-                      <div class="control">
-                        <input type="number" name="cantidad_1" min="1" step="any" class="input is-rounded" placeholder="Cantidad" required>
-                      </div>
-                      <div class="control">
-                        <button type="button" class="button is-danger is-light removeBtn is-rounded">
-                          <span class="icon"><i class="fas fa-times"></i></span>
-                        </button>
-                      </div>
+                    </div>
+                    <div class="field">
+                      <button type="button" class="button is-small is-info is-light is-rounded" onclick="agregarProducto()">
+                        <span class="icon"><i class="fas fa-plus"></i></span>
+                        <span>Agregar producto</span>
+                      </button>
                     </div>
                   </div>
-                  <div class="field">
-                    <button type="button" class="button is-small is-info is-light is-rounded" onclick="agregarEntradaProducto()">
-                      <span class="icon"><i class="fas fa-plus"></i></span>
-                      <span>Agregar producto</span>
-                    </button>
-                  </div>
+
                   <footer class="modal-card-foot mt-5">
-                    <button type="submit" class="button is-success is-rounded has-text-weight-bold">
+                    <button type="submit" class="button is-primary is-rounded has-text-weight-bold" id="btnConfirmar" disabled>
                       <span class="icon"><i class="fas fa-check"></i></span>
-                      <span>Confirmar Entrada</span>
+                      <span>Confirmar Movimiento</span>
                     </button>
-                    <button type="button" class="button is-light is-rounded" onclick="document.getElementById('entradaModal').classList.remove('is-active')">
+                    <button type="button" class="button is-light is-rounded" onclick="cerrarModalMovimiento()">
                       <span class="icon"><i class="fas fa-ban"></i></span>
                       <span>Cancelar</span>
                     </button>
@@ -262,65 +306,6 @@ module.exports = ({ dep, grid, movimientos, productos, tiposComprobantes, pagina
             </div>
           </div>
 
-          <div class="modal" id="salidaModal">
-            <div class="modal-background"></div>
-            <div class="modal-card">
-              <header class="modal-card-head has-background-danger-light">
-                <p class="modal-card-title has-text-danger-dark">
-                  <span class="icon mr-2"><i class="fas fa-arrow-alt-circle-up"></i></span>
-                  Registrar Salida
-                </p>
-                <button class="delete" aria-label="close" onclick="document.getElementById('salidaModal').classList.remove('is-active')"></button>
-              </header>
-              <section class="modal-card-body">
-                <form method="POST" action="/inventarios/depositos/${dep.id_dep}/salidas">
-                  <div class="field">
-                    <label class="label">Observación</label>
-                    <div class="control">
-                      <input type="text" name="observacion" class="input is-rounded" placeholder="Detalle u observación opcional">
-                    </div>
-                  </div>
-                  <hr>
-                  <h4 class="title is-6 mb-3">Productos a Consumir/Despachar:</h4>
-                  <div id="salidaProductosContainer">
-                    <div class="field is-grouped producto-row mb-3">
-                      <div class="control is-expanded">
-                        <div class="select is-fullwidth is-rounded">
-                          <select name="producto_1" required>
-                            ${productos.map(p => `<option value="${p.id_prodDep}">${p.Producto.nombre_prod}</option>`).join('')}
-                          </select>
-                        </div>
-                      </div>
-                      <div class="control">
-                        <input type="number" name="cantidad_1" min="1" step="any" class="input is-rounded" placeholder="Cantidad" required>
-                      </div>
-                      <div class="control">
-                        <button type="button" class="button is-danger is-light removeBtn is-rounded">
-                          <span class="icon"><i class="fas fa-times"></i></span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="field">
-                    <button type="button" class="button is-small is-info is-light is-rounded" onclick="agregarSalidaProducto()">
-                      <span class="icon"><i class="fas fa-plus"></i></span>
-                      <span>Agregar producto</span>
-                    </button>
-                  </div>
-                  <footer class="modal-card-foot mt-5">
-                    <button type="submit" class="button is-danger is-rounded has-text-weight-bold">
-                      <span class="icon"><i class="fas fa-check"></i></span>
-                      <span>Confirmar Salida</span>
-                    </button>
-                    <button type="button" class="button is-light is-rounded" onclick="document.getElementById('salidaModal').classList.remove('is-active')">
-                      <span class="icon"><i class="fas fa-ban"></i></span>
-                      <span>Cancelar</span>
-                    </button>
-                  </footer>
-                </form>
-              </section>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -344,59 +329,228 @@ module.exports = ({ dep, grid, movimientos, productos, tiposComprobantes, pagina
           });
         }
 
-        let entradaIndex = 1;
-        function agregarEntradaProducto() {
-          entradaIndex++;
-          const cont = document.getElementById('entradaProductosContainer');
+        // Variables para el modal unificado
+        let productoIndex = 1;
+
+        // Función para abrir el modal
+        function abrirModalMovimiento() {
+          const modal = document.getElementById('movimientoModal');
+          modal.classList.add('is-active');
+          
+          // Inicializar opciones de productos
+          setTimeout(() => {
+            actualizarOpcionesProductos();
+            validarFormulario();
+          }, 10);
+        }
+
+        // Función para cambiar el tipo de movimiento
+        function cambiarTipoMovimiento() {
+          const select = document.getElementById('tipoMovSelect');
+          const selectedOption = select.options[select.selectedIndex];
+          const direccion = selectedOption.getAttribute('data-direccion');
+          const tipoCompField = document.getElementById('tipoCompField');
+          const productosSection = document.getElementById('productosSection');
+          const productosTitle = document.getElementById('productosTitle');
+          const btnConfirmar = document.getElementById('btnConfirmar');
+          const tipoMovHelp = document.getElementById('tipoMovHelp');
+
+          if (select.value) {
+            // Mostrar sección de productos
+            productosSection.style.display = 'block';
+
+            // Actualizar título y ayuda según el tipo
+            if (direccion === 'IN') {
+              productosTitle.textContent = 'Productos a Ingresar:';
+              tipoMovHelp.innerHTML = '<span class="has-text-success"><i class="fas fa-plus-circle"></i> Movimiento de entrada</span> - Los productos se añadirán al stock del depósito';
+              tipoCompField.style.display = 'block';
+              btnConfirmar.className = 'button is-success is-rounded has-text-weight-bold';
+              btnConfirmar.innerHTML = '<span class="icon"><i class="fas fa-arrow-down"></i></span><span>Confirmar Entrada</span>';
+            } else if (direccion === 'OUT') {
+              productosTitle.textContent = 'Productos a Consumir/Despachar:';
+              tipoMovHelp.innerHTML = '<span class="has-text-danger"><i class="fas fa-minus-circle"></i> Movimiento de salida</span> - Los productos se descontarán del stock (se verificará disponibilidad)';
+              tipoCompField.style.display = 'none';
+              btnConfirmar.className = 'button is-danger is-rounded has-text-weight-bold';
+              btnConfirmar.innerHTML = '<span class="icon"><i class="fas fa-arrow-up"></i></span><span>Confirmar Salida</span>';
+            } else {
+              productosTitle.textContent = 'Productos:';
+              tipoMovHelp.innerHTML = '<span class="has-text-info"><i class="fas fa-exchange-alt"></i> Movimiento personalizado</span> - Se procesará según la configuración del tipo';
+              tipoCompField.style.display = 'none';
+              btnConfirmar.className = 'button is-primary is-rounded has-text-weight-bold';
+              btnConfirmar.innerHTML = '<span class="icon"><i class="fas fa-check"></i></span><span>Confirmar Movimiento</span>';
+            }
+
+            // Actualizar opciones de productos y validar formulario
+            setTimeout(() => {
+              actualizarOpcionesProductos();
+              validarFormulario();
+            }, 10);
+          } else {
+            // Ocultar secciones si no hay selección
+            productosSection.style.display = 'none';
+            tipoCompField.style.display = 'none';
+            btnConfirmar.disabled = true;
+            tipoMovHelp.textContent = 'Seleccione el tipo de movimiento que desea registrar';
+            btnConfirmar.className = 'button is-primary is-rounded has-text-weight-bold';
+            btnConfirmar.innerHTML = '<span class="icon"><i class="fas fa-check"></i></span><span>Confirmar Movimiento</span>';
+          }
+        }
+
+        // Función para obtener productos ya seleccionados
+        function getProductosSeleccionados() {
+          const selects = document.querySelectorAll('#productosContainer select[name^="producto_"]');
+          const seleccionados = [];
+          selects.forEach(select => {
+            if (select.value) {
+              seleccionados.push(select.value);
+            }
+          });
+          return seleccionados;
+        }
+
+        // Función para actualizar opciones disponibles en todos los selects
+        function actualizarOpcionesProductos() {
+          const seleccionados = getProductosSeleccionados();
+          const selects = document.querySelectorAll('#productosContainer select[name^="producto_"]');
+          
+          selects.forEach(select => {
+            const valorActual = select.value;
+            
+            // Limpiar opciones
+            select.innerHTML = '<option value="">Seleccione un producto</option>';
+            
+            // Añadir productos disponibles
+            ${JSON.stringify(productos)}.forEach(p => {
+              const option = document.createElement('option');
+              option.value = p.id_prodDep;
+              option.textContent = p.Producto.nombre_prod;
+              
+              // Deshabilitar si ya está seleccionado en otro select (excepto el actual)
+              if (seleccionados.includes(p.id_prodDep.toString()) && p.id_prodDep.toString() !== valorActual) {
+                option.disabled = true;
+                option.textContent += ' (Ya seleccionado)';
+                option.style.color = '#999';
+              }
+              
+              select.appendChild(option);
+            });
+            
+            // Restaurar valor actual si sigue siendo válido
+            if (valorActual) {
+              select.value = valorActual;
+            }
+          });
+        }
+
+        // Función para agregar productos
+        function agregarProducto() {
+          const productosDisponibles = ${JSON.stringify(productos)}.length;
+          const productosSeleccionados = getProductosSeleccionados().length;
+          
+          // Verificar si hay productos disponibles para seleccionar
+          if (productosSeleccionados >= productosDisponibles) {
+            alert('Ya ha seleccionado todos los productos disponibles en este depósito.');
+            return;
+          }
+          
+          productoIndex++;
+          const cont = document.getElementById('productosContainer');
           const newRow = \`
             <div class="field is-grouped producto-row mb-3">
               <div class="control is-expanded">
                 <div class="select is-fullwidth is-rounded">
-                  <select name="producto_\${entradaIndex}" required>
-                    ${productos.map(p => `<option value="${p.id_prodDep}">${p.Producto.nombre_prod}</option>`).join('')}
+                  <select name="producto_\${productoIndex}" required onchange="actualizarOpcionesProductos(); validarFormulario();">
+                    <option value="">Seleccione un producto</option>
                   </select>
                 </div>
               </div>
               <div class="control">
-                <input type="number" name="cantidad_\${entradaIndex}" min="1" step="any" class="input is-rounded" placeholder="Cantidad" required>
+                <input type="number" name="cantidad_\${productoIndex}" min="1" step="any" class="input is-rounded" placeholder="Cantidad" required oninput="validarFormulario()">
               </div>
               <div class="control">
-                <button type="button" class="button is-danger is-light removeBtn is-rounded">
+                <button type="button" class="button is-danger is-light removeBtn is-rounded" title="Eliminar producto">
                   <span class="icon"><i class="fas fa-times"></i></span>
                 </button>
               </div>
             </div>\`;
           cont.insertAdjacentHTML('beforeend', newRow);
+          
+          // Actualizar opciones después de agregar la nueva fila
+          setTimeout(() => {
+            actualizarOpcionesProductos();
+            validarFormulario();
+          }, 10);
         }
 
-        let salidaIndex = 1;
-        function agregarSalidaProducto() {
-          salidaIndex++;
-          const cont = document.getElementById('salidaProductosContainer');
-          const newRow = \`
-            <div class="field is-grouped producto-row mb-3">
-              <div class="control is-expanded">
-                <div class="select is-fullwidth is-rounded">
-                  <select name="producto_\${salidaIndex}" required>
-                    ${productos.map(p => `<option value="${p.id_prodDep}">${p.Producto.nombre_prod}</option>`).join('')}
-                  </select>
-                </div>
-              </div>
-              <div class="control">
-                <input type="number" name="cantidad_\${salidaIndex}" min="1" step="any" class="input is-rounded" placeholder="Cantidad" required>
-              </div>
-              <div class="control">
-                <button type="button" class="button is-danger is-light removeBtn is-rounded">
-                  <span class="icon"><i class="fas fa-times"></i></span>
-                </button>
-              </div>
-            </div>\`;
-          cont.insertAdjacentHTML('beforeend', newRow);
+        // Función para validar el formulario
+        function validarFormulario() {
+          const tipoMovSelect = document.getElementById('tipoMovSelect');
+          const btnConfirmar = document.getElementById('btnConfirmar');
+          const rows = document.querySelectorAll('#productosContainer .producto-row');
+          
+          let formularioValido = tipoMovSelect.value !== '';
+          
+          // Verificar que cada fila tenga producto y cantidad válidos
+          rows.forEach(row => {
+            const productoSelect = row.querySelector('select[name^="producto_"]');
+            const cantidadInput = row.querySelector('input[name^="cantidad_"]');
+            
+            if (!productoSelect.value || !cantidadInput.value || parseFloat(cantidadInput.value) <= 0) {
+              formularioValido = false;
+            }
+          });
+          
+          btnConfirmar.disabled = !formularioValido;
         }
 
+        // Función para cerrar el modal
+        function cerrarModalMovimiento() {
+          const modal = document.getElementById('movimientoModal');
+          const form = document.getElementById('formMovimiento');
+          
+          modal.classList.remove('is-active');
+          form.reset();
+          productoIndex = 1;
+          
+          // Resetear estado del modal
+          document.getElementById('productosSection').style.display = 'none';
+          document.getElementById('tipoCompField').style.display = 'none';
+          document.getElementById('btnConfirmar').disabled = true;
+          document.getElementById('tipoMovHelp').textContent = 'Seleccione el tipo de movimiento que desea registrar';
+          
+          // Limpiar productos adicionales
+          const container = document.getElementById('productosContainer');
+          const rows = container.querySelectorAll('.producto-row');
+          for (let i = 1; i < rows.length; i++) {
+            rows[i].remove();
+          }
+        }
+
+        // Event listener para remover productos
         document.addEventListener('click', (e) => {
           if (e.target.classList.contains('removeBtn') || e.target.closest('.removeBtn')) {
-            e.target.closest('.producto-row').remove();
+            const row = e.target.closest('.producto-row');
+            const container = document.getElementById('productosContainer');
+            
+            // No permitir eliminar si es la única fila
+            if (container.querySelectorAll('.producto-row').length > 1) {
+              row.remove();
+              
+              // Actualizar opciones y validar después de eliminar
+              setTimeout(() => {
+                actualizarOpcionesProductos();
+                validarFormulario();
+              }, 10);
+            } else {
+              alert('Debe mantener al menos un producto en el movimiento.');
+            }
+          }
+        });
+
+        // Cerrar modal al hacer click en el fondo
+        document.getElementById('movimientoModal').addEventListener('click', (e) => {
+          if (e.target.classList.contains('modal-background')) {
+            cerrarModalMovimiento();
           }
         });
       </script>

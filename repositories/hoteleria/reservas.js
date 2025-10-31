@@ -20,19 +20,6 @@ class ReservasRepository {
   // ============================================================
   // 📗 Lectura y filtros
   // ============================================================
-  async getAll({ q, page = 1, estado, id_tipoHab, fechaDesde, fechaHasta } = {}) {
-    const currentPage = Number(page) || 1;
-    const where = {};
-
-    // 🔍 Filtro de búsqueda general
-    if (q) {
-      where.OR = [
-        { codigoReserva: { contains: q, mode: 'insensitive' } },
-        { Huesped: { nombre: { contains: q, mode: 'insensitive' } } },
-        { Huesped: { apellido: { contains: q, mode: 'insensitive' } } },
-        { Huesped: { documento: { contains: q, mode: 'insensitive' } } },
-      ];
-    }
 
     // ====================================================================
     // MÉTODOS DE LECTURA Y FILTROS
@@ -79,6 +66,13 @@ class ReservasRepository {
         const totalReservas = await prisma.reserva.count({ where });
         const totalPages = Math.ceil(totalReservas / PAGE_SIZE);
 
+        console.log('🔍 REPO: Filtros aplicados en getAll:', {
+            where,
+            currentPage,
+            PAGE_SIZE,
+            skip: (currentPage - 1) * PAGE_SIZE
+        });
+
         // --- Obtener Datos ---
         const reservas = await prisma.reserva.findMany({
             where,
@@ -104,6 +98,19 @@ class ReservasRepository {
             skip: (currentPage - 1) * PAGE_SIZE,
         });
 
+        console.log('🔍 REPO: Reservas obtenidas de BD:', {
+            total: reservas.length,
+            primeras3: reservas.slice(0, 3).map(r => ({
+                id: r.id_reserva,
+                codigo: r.codigoReserva,
+                fechaCheckIn: r.fechaCheckIn,
+                fechaCheckInTipo: typeof r.fechaCheckIn,
+                fechaCheckInISO: r.fechaCheckIn instanceof Date ? r.fechaCheckIn.toISOString() : 'No es Date',
+                estado: r.estado,
+                huesped: `${r.Huesped?.apellido}, ${r.Huesped?.nombre}`
+            }))
+        });
+
         // Ordenar manualmente para poner CANCELADA al final
         const reservasOrdenadas = reservas.sort((a, b) => {
             // Si una es CANCELADA y la otra no, CANCELADA va al final
@@ -118,45 +125,45 @@ class ReservasRepository {
     }
 
     // 🏨 Filtro por tipo de habitación
-    if (id_tipoHab) {
-      where.Habitacion = { id_tipoHab: Number(id_tipoHab) };
-    }
+  //   if (id_tipoHab) {
+  //     where.Habitacion = { id_tipoHab: Number(id_tipoHab) };
+  //   }
 
-    // 📅 Filtro por rango de fechas
-    const desdeDate = fechaDesde ? new Date(fechaDesde) : null;
-    const hastaDate = fechaHasta ? new Date(fechaHasta) : null;
-    if (desdeDate && !isNaN(desdeDate)) {
-      const startOfDay = new Date(
-        Date.UTC(desdeDate.getFullYear(), desdeDate.getMonth(), desdeDate.getDate())
-      );
-      where.fechaCheckIn = { ...where.fechaCheckIn, gte: startOfDay };
-    }
-    if (hastaDate && !isNaN(hastaDate)) {
-      const endOfDay = new Date(
-        Date.UTC(hastaDate.getFullYear(), hastaDate.getMonth(), hastaDate.getDate(), 23, 59, 59, 999)
-      );
-      where.fechaCheckIn = { ...where.fechaCheckIn, lte: endOfDay };
-    }
+  //   // 📅 Filtro por rango de fechas
+  //   const desdeDate = fechaDesde ? new Date(fechaDesde) : null;
+  //   const hastaDate = fechaHasta ? new Date(fechaHasta) : null;
+  //   if (desdeDate && !isNaN(desdeDate)) {
+  //     const startOfDay = new Date(
+  //       Date.UTC(desdeDate.getFullYear(), desdeDate.getMonth(), desdeDate.getDate())
+  //     );
+  //     where.fechaCheckIn = { ...where.fechaCheckIn, gte: startOfDay };
+  //   }
+  //   if (hastaDate && !isNaN(hastaDate)) {
+  //     const endOfDay = new Date(
+  //       Date.UTC(hastaDate.getFullYear(), hastaDate.getMonth(), hastaDate.getDate(), 23, 59, 59, 999)
+  //     );
+  //     where.fechaCheckIn = { ...where.fechaCheckIn, lte: endOfDay };
+  //   }
 
-    // 📊 Conteo y paginación
-    const totalReservas = await prisma.reserva.count({ where });
-    const totalPages = Math.ceil(totalReservas / PAGE_SIZE);
+  //   // 📊 Conteo y paginación
+  //   const totalReservas = await prisma.reserva.count({ where });
+  //   const totalPages = Math.ceil(totalReservas / PAGE_SIZE);
 
-    // 🧾 Listado de reservas
-    const reservas = await prisma.reserva.findMany({
-      where,
-      include: {
-        Huesped: true,
-        Habitacion: { include: { TipoHabitacion: true } },
-        PagoReserva: { include: { FormaPago: true } },
-      },
-      orderBy: { fechaCheckIn: 'desc' },
-      take: PAGE_SIZE,
-      skip: (currentPage - 1) * PAGE_SIZE,
-    });
+  //   // 🧾 Listado de reservas
+  //   const reservas = await prisma.reserva.findMany({
+  //     where,
+  //     include: {
+  //       Huesped: true,
+  //       Habitacion: { include: { TipoHabitacion: true } },
+  //       PagoReserva: { include: { FormaPago: true } },
+  //     },
+  //     orderBy: { fechaCheckIn: 'desc' },
+  //     take: PAGE_SIZE,
+  //     skip: (currentPage - 1) * PAGE_SIZE,
+  //   });
 
-    return { reservas, totalPages, currentPage, totalReservas };
-  }
+  //   return { reservas, totalPages, currentPage, totalReservas };
+  // }
 
   // ============================================================
   // 📋 Datos para formularios (incluye Formas de Pago)
