@@ -122,189 +122,398 @@ module.exports = ({ reserva, formasPago = [] }) => {
     content: `
       <link rel="stylesheet" href="/css/checkin-detail.css">
 
-      <section class="section">
-        <div class="container is-max-desktop">
-          <nav class="breadcrumb mb-5" aria-label="breadcrumbs">
-            <ul>
-              <li><a href="/hoteleria/checkin-checkout">Tablero de Habitaciones</a></li>
-              <li class="is-active"><a href="#" aria-current="page">Confirmar Check-in</a></li>
-            </ul>
-          </nav>
+      <div class="checkin-detail-page">
+        <nav class="breadcrumb-nav">
+          <a href="/hoteleria/checkin-checkout">
+            <i class="fas fa-home"></i> Tablero de Habitaciones
+          </a>
+          <span class="separator">›</span>
+          <span class="current">Confirmar Check-in</span>
+        </nav>
 
-          <div class="box p-5">
-            <form method="POST" action="/hoteleria/checkin/${reserva.id_reserva}/confirm">
-
-              <div class="level mb-5">
-                <div class="level-left">
-                  <div>
-                    <h1 class="title is-3 mb-1">Confirmar Check-in</h1>
-                    <h2 class="subtitle is-5 has-text-link">Reserva #${reserva.codigoReserva}</h2>
+        <div class="detail-card">
+          <form method="POST" action="/hoteleria/checkin/${reserva.id_reserva}/confirm">
+            <div class="detail-header">
+              <div class="detail-header-content">
+                <div>
+                  <div class="detail-title">
+                    <i class="fas fa-door-open icon"></i>
+                    <h1>Confirmar Check-in</h1>
                   </div>
+                  <p class="detail-subtitle">
+                    <i class="fas fa-bookmark"></i>
+                    Reserva #${reserva.codigoReserva}
+                  </p>
                 </div>
-                <div class="level-right">
-                  <a href="/hoteleria/checkin-checkout" class="button is-light is-rounded is-medium">Cancelar</a>
-                  <button type="submit" class="button is-primary is-medium is-rounded ml-2"
+                <div class="detail-actions">
+                  <a href="/hoteleria/checkin-checkout" class="btn-detail btn-detail--outline">
+                    <i class="fas fa-arrow-left"></i>
+                    Cancelar
+                  </a>
+                  <button type="submit" class="btn-detail btn-detail--primary"
                           id="btnConfirmarCheckin" ${saldoPendiente > 0 ? 'disabled' : ''}>
-                    <span class="icon"><i class="fas fa-check"></i></span>
-                    <span>Confirmar Ingreso</span>
+                    <i class="fas fa-check-circle"></i>
+                    Confirmar Ingreso
                   </button>
                 </div>
               </div>
+            </div>
 
-              <hr class="mt-0">
-
-              <div class="columns is-multiline">
+            <div class="detail-content">
+              <div class="detail-grid">
                 <!-- DATOS DE LA ESTANCIA -->
-                <div class="column is-half">
-                  <h3 class="title is-5 mb-3">Detalles de la Estancia</h3>
-                  <div class="box has-background-light">
-                    <p><strong>Habitación:</strong> <span class="tag is-dark is-medium">${habitacion?.numero || 'N/A'}</span></p>
-                    <p><strong>Tipo:</strong> ${tipoHab?.nombre || 'N/A'}</p>
-                    <p><strong>Check-in:</strong> ${formatDate(reserva.fechaCheckIn)}</p>
-                    <p><strong>Check-out:</strong> ${formatDate(reserva.fechaCheckOut)}</p>
-                    <p><strong>Noches:</strong> ${noches}</p>
-                    <p><strong>Ocupantes:</strong> ${reserva.cantAdultos} Adultos, ${reserva.cantNinos} Niños</p>
-                    <p><strong>Capacidad:</strong> ${tipoHab?.capacidad || 'N/A'} personas</p>
-                    <label class="label is-small mt-4">Comodidades</label>
-                    <div class="tags">${comodidadesHtml}</div>
+                <div class="detail-section">
+                  <h3>
+                    <i class="fas fa-bed section-icon"></i>
+                    Detalles de la Estancia
+                  </h3>
+                  <div class="info-item">
+                    <span class="info-label">Habitación</span>
+                    <span class="room-badge">${habitacion?.numero || 'N/A'}</span>
                   </div>
+                  <div class="info-item">
+                    <span class="info-label">Tipo</span>
+                    <span class="info-value">${tipoHab?.nombre || 'N/A'}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Check-in</span>
+                    <span class="info-value">${formatDate(reserva.fechaCheckIn)}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Check-out</span>
+                    <span class="info-value">${formatDate(reserva.fechaCheckOut)}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Noches</span>
+                    <span class="info-value">${noches}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Capacidad</span>
+                    <span class="info-value">${tipoHab?.capacidad || 'N/A'} personas</span>
+                  </div>
+                  <div class="guest-tags">
+                    <span class="guest-tag guest-tag--adults">
+                      <i class="fas fa-user"></i> ${reserva.cantAdultos} Adultos
+                    </span>
+                    <span class="guest-tag guest-tag--children">
+                      <i class="fas fa-child"></i> ${reserva.cantNinos} Niños
+                    </span>
+                  </div>
+                  <div class="amenity-tags">${comodidadesHtml.replace(/tag is-info is-light is-rounded/g, 'amenity-tag')}</div>
                 </div>
 
                 <!-- DATOS DEL HUÉSPED -->
-                <div class="column is-half">
-                  <h3 class="title is-5 mb-3">Datos del Huésped</h3>
-                  <div class="box has-background-white-ter">
-                    <p class="title is-5 mb-1">${huesped?.apellido || ''}, ${huesped?.nombre || ''}</p>
-                    <p class="subtitle is-6 has-text-grey">ID Huésped: ${huesped?.id_huesped || 'N/A'}</p>
-                    <p><strong>DNI:</strong> ${huesped?.documento || '-'}</p>
-                    <p><strong>Teléfono:</strong> ${huesped?.telefono || '-'}</p>
-                    <p><strong>Email:</strong> ${huesped?.email || '-'}</p>
+                <div class="detail-section">
+                  <h3>
+                    <i class="fas fa-user-circle section-icon"></i>
+                    Datos del Huésped
+                  </h3>
+                  <div class="guest-info">
+                    <div class="guest-avatar">
+                      ${(huesped?.nombre?.charAt(0) || '') + (huesped?.apellido?.charAt(0) || '')}
+                    </div>
+                    <p class="guest-name">${huesped?.apellido || ''}, ${huesped?.nombre || ''}</p>
+                    <p class="guest-id">ID: ${huesped?.id_huesped || 'N/A'}</p>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">DNI</span>
+                    <span class="info-value">${huesped?.documento || '-'}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Teléfono</span>
+                    <span class="info-value">${huesped?.telefono || '-'}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="info-label">Email</span>
+                    <span class="info-value" style="word-break: break-all;">${huesped?.email || '-'}</span>
                   </div>
                 </div>
 
-                <!-- ESTADO DE CUENTA -->
-                <div class="column is-full">
-                  <h3 class="title is-5 mt-4 mb-3">Pagos de la Reserva</h3>
-                  ${pagosHtml}
-
-                  <div class="notification ${saldoPendiente > 0 ? 'is-warning' : 'is-success'} is-light mt-4">
-                    <div class="level">
-                      <div class="level-left">
-                        <div>
-                          <p>Total Reserva: <strong>${formatCurrency(reserva.total)}</strong></p>
-                          <p>Total Pagado: <strong>${formatCurrency(totalPagado)}</strong></p>
-                          <p class="title is-6 ${saldoPendiente > 0 ? 'has-text-danger' : 'has-text-success'} mt-2">
-                            SALDO PENDIENTE: ${formatCurrency(saldoPendiente)}
-                          </p>
+                <!-- ESTADO DE PAGOS -->
+                <div class="payment-section">
+                  <div class="payment-header">
+                    <h3>
+                      <i class="fas fa-credit-card"></i>
+                      Estado de Pagos
+                    </h3>
+                  </div>
+                  <div class="payment-content">
+                    ${pagos.length > 0 ? `
+                      <table class="payment-table">
+                        <thead>
+                          <tr>
+                            <th>Fecha</th>
+                            <th>Forma de Pago</th>
+                            <th>Monto</th>
+                            <th>Referencia</th>
+                            <th>Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${pagos.map(p => `
+                            <tr>
+                              <td>${formatDate(p.fechaPago)}</td>
+                              <td>${p.FormaPago?.nombre || 'N/A'}</td>
+                              <td>${formatCurrency(p.monto)}</td>
+                              <td>${p.referencia || '-'}</td>
+                              <td>
+                                <span class="status-badge status-badge--${
+                                  p.estado === 'COMPLETADO' ? 'success' :
+                                  p.estado === 'PENDIENTE' ? 'warning' : 'danger'
+                                }">${p.estado}</span>
+                              </td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                    ` : '<p class="text-center" style="color: #64748b; padding: 20px;">No se registraron pagos todavía.</p>'}
+                    
+                    <div class="payment-summary">
+                      <div class="summary-grid">
+                        <div class="summary-item">
+                          <p class="summary-label">Total Reserva</p>
+                          <p class="summary-value summary-value--total">${formatCurrency(reserva.total)}</p>
+                        </div>
+                        <div class="summary-item">
+                          <p class="summary-label">Total Pagado</p>
+                          <p class="summary-value summary-value--paid">${formatCurrency(totalPagado)}</p>
+                        </div>
+                        <div class="summary-item">
+                          <p class="summary-label">Saldo Pendiente</p>
+                          <p class="summary-value summary-value--pending">${formatCurrency(saldoPendiente)}</p>
                         </div>
                       </div>
-                      <div class="level-right">
-                        ${
-                          saldoPendiente > 0
-                            ? `
-                            <a class="button is-danger is-rounded" id="btnRegistrarPago">
-                              <span class="icon"><i class="fas fa-dollar-sign"></i></span>
-                              <span>Registrar Pago</span>
-                            </a>`
-                            : `<span class="icon is-large has-text-success"><i class="fas fa-check-circle fa-2x"></i></span>`
-                        }
+                      
+                      <div class="summary-actions">
+                        <div>
+                          ${saldoPendiente > 0 ? 
+                            '<div class="status-message status-message--warning"><i class="fas fa-exclamation-triangle"></i> El check-in se habilita cuando el saldo sea $0.</div>' :
+                            '<div class="status-message status-message--success"><i class="fas fa-check-circle"></i> ¡Perfecto! La reserva está completamente pagada.</div>'
+                          }
+                        </div>
+                        ${saldoPendiente > 0 ? `
+                          <button class="btn-detail btn-detail--danger" id="btnRegistrarPago">
+                            <i class="fas fa-dollar-sign"></i>
+                            Registrar Pago
+                          </button>
+                        ` : `
+                          <div class="text-center">
+                            <i class="fas fa-check-circle" style="font-size: 2rem; color: var(--success-color);"></i>
+                          </div>
+                        `}
                       </div>
                     </div>
                   </div>
-                  ${
-                    saldoPendiente > 0
-                      ? '<p class="help has-text-danger has-text-centered">El check-in se habilita cuando el saldo sea $0.</p>'
-                      : ''
-                  }
                 </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL REGISTRAR PAGO -->
+      <div class="modal-overlay is-hidden" id="modalPago">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3 class="modal-title">
+              <i class="fas fa-credit-card"></i>
+              Registrar Pago
+            </h3>
+            <button class="modal-close" aria-label="close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="status-message status-message--warning mb-4">
+              <i class="fas fa-info-circle"></i>
+              <div>
+                <strong>Saldo Pendiente:</strong> ${formatCurrency(saldoPendiente)}
+              </div>
+            </div>
+            
+            <form id="formPago">
+              <div class="form-field">
+                <label class="form-label">Forma de Pago</label>
+                <select class="form-select" name="id_fp" required>
+                  <option value="">Seleccionar forma de pago...</option>
+                  ${formasPago.map((fp) => `<option value="${fp.id_fp}">${fp.nombre}</option>`).join('')}
+                </select>
+              </div>
+              
+              <div class="form-field">
+                <label class="form-label">Monto</label>
+                <input class="form-input" type="number" name="monto" min="0" step="0.01" 
+                       placeholder="0.00" value="${saldoPendiente}" required>
+                <p class="form-help">Ingrese el monto del pago (máximo: ${formatCurrency(saldoPendiente)})</p>
+              </div>
+              
+              <div class="form-field">
+                <label class="form-label">Referencia / Observaciones</label>
+                <input class="form-input" type="text" name="referencia" 
+                       placeholder="Ej: Comprobante #123, Transferencia MP-001, etc.">
+                <p class="form-help">Opcional: Agregue una referencia o nota sobre el pago</p>
               </div>
             </form>
           </div>
-        </div>
-      </section>
-
-      <!-- 🧾 MODAL REGISTRAR PAGO -->
-      <div class="modal" id="modalPago">
-        <div class="modal-background"></div>
-        <div class="modal-card">
-          <header class="modal-card-head">
-            <p class="modal-card-title">Registrar Pago</p>
-            <button class="delete" aria-label="close"></button>
-          </header>
-          <section class="modal-card-body">
-            <form id="formPago">
-              <div class="field">
-                <label class="label">Forma de Pago</label>
-                <div class="control">
-                  <div class="select is-fullwidth">
-                    <select name="id_fp" required>
-                      <option value="">Seleccionar...</option>
-                      ${formasPago
-                        .map((fp) => `<option value="${fp.id_fp}">${fp.nombre}</option>`)
-                        .join('')}
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div class="field">
-                <label class="label">Monto</label>
-                <div class="control">
-                  <input class="input" type="number" name="monto" min="0" step="0.01" required>
-                </div>
-              </div>
-              <div class="field">
-                <label class="label">Referencia / Observaciones</label>
-                <div class="control">
-                  <input class="input" type="text" name="referencia" placeholder="Ej: Ticket #123 o MP-001">
-                </div>
-              </div>
-            </form>
-          </section>
-          <footer class="modal-card-foot">
-            <button class="button is-success" id="btnGuardarPago">Guardar Pago</button>
-            <button class="button" id="btnCancelarPago">Cancelar</button>
-          </footer>
+          <div class="modal-footer">
+            <button class="btn-detail btn-detail--success" id="btnGuardarPago">
+              <i class="fas fa-save"></i>
+              Guardar Pago
+            </button>
+            <button class="btn-detail btn-detail--outline" id="btnCancelarPago">
+              <i class="fas fa-times"></i>
+              Cancelar
+            </button>
+          </div>
         </div>
       </div>
 
       <script>
+        console.log('Inicializando modal de pago - Checkin Detail');
+        
         const modal = document.getElementById('modalPago');
         const btnOpen = document.getElementById('btnRegistrarPago');
-        const btnClose = modal.querySelector('.delete');
+        const btnClose = modal?.querySelector('.modal-close');
         const btnCancel = document.getElementById('btnCancelarPago');
         const btnGuardar = document.getElementById('btnGuardarPago');
         const formPago = document.getElementById('formPago');
 
+        console.log('Elementos encontrados:', {
+          modal: !!modal,
+          btnOpen: !!btnOpen,
+          btnClose: !!btnClose,
+          btnCancel: !!btnCancel,
+          btnGuardar: !!btnGuardar,
+          formPago: !!formPago
+        });
+
         const toggleModal = (show) => {
-          modal.classList.toggle('is-active', show);
+          console.log('Toggle modal:', show);
+          if (show) {
+            modal.classList.remove('is-hidden');
+            document.body.style.overflow = 'hidden';
+          } else {
+            modal.classList.add('is-hidden');
+            document.body.style.overflow = '';
+          }
         };
 
-        if (btnOpen) btnOpen.addEventListener('click', () => toggleModal(true));
-        btnClose.addEventListener('click', () => toggleModal(false));
-        btnCancel.addEventListener('click', () => toggleModal(false));
-
-        btnGuardar.addEventListener('click', async () => {
-          const data = Object.fromEntries(new FormData(formPago).entries());
-          data.id_reserva = ${reserva.id_reserva};
-          if (!data.id_fp || !data.monto) {
-            alert('Debe completar los campos obligatorios');
-            return;
-          }
-
-          const res = await fetch('/hoteleria/pagos/new', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+        // Abrir modal
+        if (btnOpen) {
+          btnOpen.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Abriendo modal de pago');
+            toggleModal(true);
           });
+        }
 
-          if (res.ok) {
-            alert('Pago registrado con éxito');
-            location.reload();
-          } else {
-            const err = await res.text();
-            alert('Error al registrar el pago: ' + err);
+        // Cerrar modal
+        if (btnClose) {
+          btnClose.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Cerrando modal (X)');
+            toggleModal(false);
+          });
+        }
+
+        if (btnCancel) {
+          btnCancel.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Cancelando modal');
+            toggleModal(false);
+          });
+        }
+
+        // Close modal on background click
+        if (modal) {
+          modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+              console.log('Cerrando modal (fondo)');
+              toggleModal(false);
+            }
+          });
+        }
+
+        // Guardar pago
+        if (btnGuardar) {
+          btnGuardar.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('Intentando guardar pago...');
+            
+            const formData = new FormData(formPago);
+            const data = Object.fromEntries(formData.entries());
+            data.id_reserva = ${reserva.id_reserva};
+            
+            console.log('Datos del formulario:', data);
+            
+            // Validación
+            if (!data.id_fp || !data.monto) {
+              console.log('Validación fallida:', { id_fp: data.id_fp, monto: data.monto });
+              alert('⚠️ Debe completar todos los campos obligatorios');
+              return;
+            }
+
+            // Validar monto
+            const monto = parseFloat(data.monto);
+            if (isNaN(monto) || monto <= 0) {
+              alert('⚠️ El monto debe ser un número mayor a 0');
+              return;
+            }
+
+            // Add loading state
+            const originalHTML = btnGuardar.innerHTML;
+            btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+            btnGuardar.disabled = true;
+
+            try {
+              console.log('Enviando solicitud a /hoteleria/pagos/new');
+              
+              const res = await fetch('/hoteleria/pagos/new', {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json'
+                },
+                body: JSON.stringify(data)
+              });
+
+              console.log('Respuesta recibida:', res.status, res.statusText);
+
+              if (res.ok) {
+                const result = await res.json().catch(() => ({}));
+                console.log('Pago guardado exitosamente:', result);
+                alert('✅ Pago registrado con éxito. Recargando página...');
+                setTimeout(() => {
+                  location.reload();
+                }, 1000);
+              } else {
+                const err = await res.text().catch(() => 'Error desconocido');
+                console.error('Error del servidor:', err);
+                alert('❌ Error al registrar el pago: ' + err);
+                btnGuardar.innerHTML = originalHTML;
+                btnGuardar.disabled = false;
+              }
+            } catch (error) {
+              console.error('Error de conexión:', error);
+              alert('❌ Error de conexión: ' + error.message);
+              btnGuardar.innerHTML = originalHTML;
+              btnGuardar.disabled = false;
+            }
+          });
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && modal && !modal.classList.contains('is-hidden')) {
+            console.log('Cerrando modal (ESC)');
+            toggleModal(false);
           }
         });
+        
+        console.log('Modal de pago inicializado correctamente');
       </script>
     `,
   });

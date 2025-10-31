@@ -13,7 +13,9 @@
     "@prisma/client": "^6.16.0",
     "date-fns": "^4.1.0",
     "express": "^5.1.0",
-    "nodemon": "^3.1.10"
+    "nodemon": "^3.1.10",
+    "puppeteer": "^21.5.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "prisma": "^6.15.0"

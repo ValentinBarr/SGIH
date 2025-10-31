@@ -44,9 +44,10 @@ module.exports = ({ content }) => {
             <ul id="hoteleria-sub" class="sidebar__submenu" hidden>
               <li><a class="sidebar__sublink" href="/hoteleria/dashboard">Dashboard</a></li>
               <li><a class="sidebar__sublink" href="/hoteleria/reservas">Reservas</a></li>
-              <li><a class="sidebar__sublink" href="/hoteleria/board">Check-in / Check-out</a></li>
+              <li><a class="sidebar__sublink" href="/hoteleria/checkin-checkout">Check-in / Check-out</a></li>
               <li><a class="sidebar__sublink" href="/hoteleria/huespedes">Huéspedes</a></li>
               <li><a class="sidebar__sublink" href="/hoteleria/calendario">Calendario</a></li>
+              <li><a class="sidebar__sublink" href="/hoteleria/reportes">📊 Reportes</a></li>
 
               <!-- Submenú anidado: Configuración -->
               <li class="sidebar__nested-group" id="configuracion-group">

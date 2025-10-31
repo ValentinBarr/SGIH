@@ -104,8 +104,14 @@ router.get('/hoteleria/checkout/:idReserva', async (req, res) => {
         if (reserva.estado !== EstadoReserva.CHECKED_IN) {
              return res.status(400).send(`Error: La reserva ${reserva.codigoReserva} no está en estado CHECKED_IN. No se puede hacer check-out.`);
         }
+
+        // Obtener las formas de pago para el modal
+        const formasPago = await prisma.formaPago.findMany({
+            where: { activo: true },
+            orderBy: { nombre: 'asc' },
+        });
         
-        res.send(checkoutDetailView({ reserva }));
+        res.send(checkoutDetailView({ reserva, formasPago }));
 
     } catch (error) {
         console.error(`Error al cargar detalles de check-out para reserva ${idReserva}:`, error);
@@ -160,28 +166,153 @@ router.post('/hoteleria/habitaciones/:idHab/checkout', async (req, res) => {
 // Crear un pago nuevo (desde el modal)
 router.post('/hoteleria/pagos/new', async (req, res) => {
   try {
+    console.log('🔍 POST /hoteleria/pagos/new - Datos recibidos:', req.body);
+    
     const { id_reserva, id_fp, monto, referencia } = req.body;
 
-    if (!id_reserva || !id_fp || !monto)
-      return res.status(400).send('Faltan datos requeridos.');
+    // Validación de datos
+    if (!id_reserva || !id_fp || !monto) {
+      console.log('❌ Validación fallida:', { id_reserva, id_fp, monto });
+      return res.status(400).json({ 
+        error: 'Faltan datos requeridos: id_reserva, id_fp y monto son obligatorios.' 
+      });
+    }
 
-    await prisma.pagoReserva.create({
+    // Validar que el monto sea un número válido
+    const montoNumerico = parseFloat(monto);
+    if (isNaN(montoNumerico) || montoNumerico <= 0) {
+      console.log('❌ Monto inválido:', monto);
+      return res.status(400).json({ 
+        error: 'El monto debe ser un número mayor a 0.' 
+      });
+    }
+
+    // Verificar que la reserva existe
+    const reserva = await prisma.reserva.findUnique({
+      where: { id_reserva: Number(id_reserva) }
+    });
+
+    if (!reserva) {
+      console.log('❌ Reserva no encontrada:', id_reserva);
+      return res.status(404).json({ 
+        error: 'La reserva especificada no existe.' 
+      });
+    }
+
+    // Crear el pago
+    const nuevoPago = await prisma.pagoReserva.create({
       data: {
         id_reserva: Number(id_reserva),
         id_fp: Number(id_fp),
-        monto: parseFloat(monto),
+        monto: montoNumerico,
         referencia: referencia || null,
         estado: EstadoPago.COMPLETADO,
+        fechaPago: new Date(),
       },
     });
 
-    res.status(200).send('OK');
+    console.log('✅ Pago creado exitosamente:', nuevoPago.id_pago);
+
+    res.status(200).json({ 
+      success: true,
+      message: 'Pago registrado correctamente',
+      pago: {
+        id: nuevoPago.id_pago,
+        monto: nuevoPago.monto,
+        fecha: nuevoPago.fechaPago
+      }
+    });
+
   } catch (error) {
-    console.error('Error al registrar pago:', error);
-    res.status(500).send(error.message || 'Error interno al registrar pago.');
+    console.error('❌ Error al registrar pago:', error);
+    res.status(500).json({ 
+      error: error.message || 'Error interno del servidor al registrar pago.' 
+    });
   }
 });
 
 
+
+// 🔍 RUTA DE DEBUG TEMPORAL - Para verificar reservas de hoy
+router.get('/hoteleria/debug/reservas-hoy', async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    console.log('🔍 DEBUG - Buscando reservas para:', {
+      desde: today.toISOString(),
+      hasta: tomorrow.toISOString()
+    });
+
+    // Todas las reservas
+    const todasReservas = await prisma.reserva.findMany({
+      include: { 
+        Huesped: true, 
+        Habitacion: { include: { TipoHabitacion: true } }
+      },
+      orderBy: { fechaCheckIn: 'asc' }
+    });
+
+    // Reservas confirmadas para hoy
+    const reservasHoy = await prisma.reserva.findMany({
+      where: {
+        estado: EstadoReserva.CONFIRMADA,
+        fechaCheckIn: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+      include: { 
+        Huesped: true, 
+        Habitacion: { include: { TipoHabitacion: true } }
+      },
+    });
+
+    // Habitaciones disponibles
+    const habitacionesDisponibles = await prisma.habitacion.findMany({
+      where: { 
+        activo: true,
+        estado: EstadoHabitacion.DISPONIBLE 
+      },
+      include: { TipoHabitacion: true },
+      orderBy: { numero: 'asc' }
+    });
+
+    const debugInfo = {
+      fechaHoy: today.toISOString(),
+      fechaManana: tomorrow.toISOString(),
+      totalReservas: todasReservas.length,
+      reservasConfirmadasHoy: reservasHoy.length,
+      habitacionesDisponibles: habitacionesDisponibles.length,
+      reservas: {
+        todas: todasReservas.map(r => ({
+          codigo: r.codigoReserva,
+          estado: r.estado,
+          fechaCheckIn: r.fechaCheckIn,
+          habitacion: r.Habitacion?.numero,
+          huesped: `${r.Huesped?.nombre} ${r.Huesped?.apellido}`
+        })),
+        confirmadas_hoy: reservasHoy.map(r => ({
+          codigo: r.codigoReserva,
+          fechaCheckIn: r.fechaCheckIn,
+          habitacion: r.Habitacion?.numero,
+          huesped: `${r.Huesped?.nombre} ${r.Huesped?.apellido}`
+        }))
+      },
+      habitaciones: habitacionesDisponibles.map(h => ({
+        numero: h.numero,
+        estado: h.estado,
+        tipo: h.TipoHabitacion?.nombre
+      }))
+    };
+
+    res.json(debugInfo);
+  } catch (error) {
+    console.error('Error en debug:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;

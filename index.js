@@ -26,6 +26,7 @@ const habitacionesRouter = require('./routes/admin/hoteleria/habitaciones.js');
 const huespedesRouter = require('./routes/admin/hoteleria/huespedes.js');
 const reservasRouter = require('./routes/admin/hoteleria/reservas.js');
 const checkRouter = require('./routes/admin/hoteleria/check.js');
+const reportesRouter = require('./routes/admin/hoteleria/reportes.js');
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.use(habitacionesRouter);
 app.use(huespedesRouter);
 app.use(reservasRouter);
 app.use(checkRouter);
+app.use(reportesRouter);
 
 // Manejo de errores global
 app.use((err, req, res, next) => {

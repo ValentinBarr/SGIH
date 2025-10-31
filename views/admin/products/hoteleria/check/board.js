@@ -124,23 +124,37 @@ const renderRoomCard = (hab) => {
 
     const dataAttributes = `data-status="${primaryStatusKey}" data-id="${id_hab}" data-nombre-huesped="${huespedNombre}" data-documento-huesped="${huespedDocumento}"`;
 
+    // Map status to CSS classes
+    const statusClassMap = {
+        'DISPONIBLE': 'available',
+        'OCUPADA': 'occupied', 
+        'LIMPIEZA': 'cleaning',
+        'MANTENIMIENTO': 'maintenance',
+        'LLEGADA_HOY': 'arrival',
+        'SALIDA_HOY': 'departure'
+    };
+    
+    const statusClass = statusClassMap[primaryStatusKey] || 'available';
+    
     return `
-        <div class="column is-one-fifth-desktop is-one-third-tablet is-half-mobile room-card-wrapper" ${dataAttributes}>
-            <div class="card room-card">
-                <header class="card-header ${colorClass}">
-                    <p class="card-header-title has-text-white is-size-4">${numero}</p>
-                </header>
-                <div class="card-content has-text-centered p-4">
-                    <span class="icon is-large my-2 ${textColorClass}">
-                        <i class="fas ${statusInfo.icon} fa-3x"></i>
-                    </span>
-                    <p class="title is-5 ${textColorClass} mb-2">${statusInfo.text}</p>
-                    <p class="subtitle is-6 has-text-grey mb-2">${detailText}</p>
-                    <p class="is-size-7 has-text-grey-light">Piso ${piso || '?'} • ${tipo}</p>
-                    ${subStatusText ? `<div class="mt-2">${subStatusText}</div>` : ''}
-                </div>
-                ${actionButton ? `<footer class="card-footer"><div class="card-footer-item p-2">${actionButton}</div></footer>` : ''}
+        <div class="room-card" ${dataAttributes}>
+            <div class="room-card-header room-card-header--${statusClass}">
+                <i class="fas fa-door-closed"></i>
+                <span>Habitación ${numero}</span>
             </div>
+            <div class="room-card-body">
+                <div class="room-status-icon ${textColorClass}">
+                    <i class="fas ${statusInfo.icon}"></i>
+                </div>
+                <div class="room-status-text ${textColorClass}">${statusInfo.text}</div>
+                <div class="room-details">${detailText}</div>
+                <div class="room-meta">
+                    <span class="room-meta-tag">Piso ${piso || '?'}</span>
+                    <span class="room-meta-tag">${tipo}</span>
+                </div>
+                ${subStatusText ? `<div class="room-status-tag room-status-tag--${statusInfo.color}">${subStatusText.replace(/<[^>]*>/g, '').replace('Sale: ', '')}</div>` : ''}
+            </div>
+            ${actionButton ? `<div class="room-card-footer">${actionButton.replace('button is-success is-fullwidth btn-action', 'room-action-btn room-action-btn--success').replace('button is-dark is-light is-fullwidth btn-action', 'room-action-btn room-action-btn--secondary').replace('button is-primary is-fullwidth', 'room-action-btn room-action-btn--primary').replace('button is-warning is-fullwidth', 'room-action-btn room-action-btn--warning')}</div>` : ''}
         </div>
     `;
 };
@@ -148,7 +162,7 @@ const renderRoomCard = (hab) => {
 // --- Módulo Principal ---
 module.exports = ({ habitaciones = [] }) => { 
     
-    // 💡 CORRECCIÓN 1: Definición de 'today' fuera de renderRoomCard
+    // CORRECCIÓN 1: Definición de 'today' fuera de renderRoomCard
     const today = startOfToday(); 
     
     // 1. Calcular Recuentos y Listas de Tarjetas
@@ -156,10 +170,18 @@ module.exports = ({ habitaciones = [] }) => {
     const llegadasHoyCards = [];
     const ocupadasCards = [];
     
+    console.log(`📋 Procesando ${habitaciones.length} habitaciones para el tablero`);
+    
     habitaciones.forEach(hab => {
         let primaryStatusKey = hab.estado;
         let checkInDate = null;
         let checkOutDate = null;
+
+        console.log(`🔍 Procesando habitación ${hab.numero}:`, {
+            estado: hab.estado,
+            tieneReservaActiva: !!hab.reservaActiva,
+            codigoReserva: hab.reservaActiva?.codigoReserva
+        });
 
         if (hab.reservaActiva) {
             try {
@@ -167,38 +189,60 @@ module.exports = ({ habitaciones = [] }) => {
                 checkOutDate = new Date(hab.reservaActiva.fechaCheckOut);
                 checkInDate.setMinutes(checkInDate.getMinutes() + checkInDate.getTimezoneOffset());
                 checkOutDate.setMinutes(checkOutDate.getMinutes() + checkOutDate.getTimezoneOffset());
-            } catch {}
+                
+                console.log(`  → Fechas procesadas:`, {
+                    checkIn: checkInDate.toISOString(),
+                    checkOut: checkOutDate.toISOString(),
+                    esHoy: isSameDay(checkInDate, today)
+                });
+            } catch (error) {
+                console.error(`  ❌ Error procesando fechas:`, error);
+            }
         }
 
-        // 🔥 LLEGADA HOY
+        // LLEGADA HOY
         if (hab.estado === 'DISPONIBLE' && hab.reservaActiva && hab.reservaActiva.estado === 'CONFIRMADA' && checkInDate && isSameDay(checkInDate, today)) {
             primaryStatusKey = 'LLEGADA_HOY';
             llegadasHoyCards.push(hab);
-            counts['LLEGADA_HOY']++; // 🔥 AGREGAR ESTE CONTADOR
+            counts['LLEGADA_HOY']++; 
+            console.log(`  ✅ LLEGADA HOY: Habitación ${hab.numero} clasificada como llegada hoy`);
             
-        // 🔥 SALIDA HOY u OCUPADA
+        // SALIDA HOY u OCUPADA
         } else if (hab.estado === 'OCUPADA') {
             primaryStatusKey = (hab.reservaActiva && checkOutDate && isSameDay(checkOutDate, today)) ? 'SALIDA_HOY' : 'OCUPADA';
             ocupadasCards.push(hab);
             counts['OCUPADAS_TOTAL']++;
+            console.log(`  🟠 OCUPADA: Habitación ${hab.numero} clasificada como ${primaryStatusKey}`);
             
-        // 🔥 OTROS ESTADOS
+        // OTROS ESTADOS
         } else {
             // Contar estados puros (DISPONIBLE sin reserva, LIMPIEZA, MANTENIMIENTO)
             if (counts[hab.estado] !== undefined) {
                 counts[hab.estado]++;
             }
+            console.log(`  🔘 OTRO ESTADO: Habitación ${hab.numero} en estado ${hab.estado}`);
         }
     });
+
+    console.log(`📏 Resumen final:`, {
+        totalHabitaciones: habitaciones.length,
+        llegadasHoy: llegadasHoyCards.length,
+        ocupadas: ocupadasCards.length,
+        disponibles: counts.DISPONIBLE,
+        limpieza: counts.LIMPIEZA,
+        mantenimiento: counts.MANTENIMIENTO
+    });
+    
+    console.log(`🟢 Habitaciones con llegada hoy:`, llegadasHoyCards.map(h => `${h.numero} (${h.reservaActiva?.codigoReserva})`));
 
     // 2. Renderizar HTML
     const checkinCardsHtml = llegadasHoyCards.length > 0
         ? llegadasHoyCards.map(renderRoomCard).join('')
-        : '<div class="column is-full"><p class="has-text-grey-light has-text-centered mt-5">No hay llegadas programadas para hoy.</p></div>';
+        : '<div class="column is-full"><p class="has-text-grey has-text-centered">No hay llegadas programadas para hoy.</p></div>';
 
     const ocupadasCardsHtml = ocupadasCards.length > 0
         ? ocupadasCards.map(renderRoomCard).join('')
-        : '<div class="column is-full"><p class="has-text-grey-light has-text-centered mt-5">No hay habitaciones ocupadas.</p></div>';
+        : '<div class="column is-full"><p class="has-text-grey has-text-centered">No hay habitaciones ocupadas.</p></div>';
 
     const allRoomCardsHtml = habitaciones.length > 0
         ? habitaciones.map(renderRoomCard).join('')
@@ -209,78 +253,102 @@ return layout({
     content: `
     <link rel="stylesheet" href="/css/room-board.css"> 
     
-    <section class="section">
-        
-        <div class="box p-5"> 
-        
+    <div class="room-board-page">
+        <div class="room-board-card">
             <!-- HEADER -->
-            <div class="level mb-5">
-              <div class="level-left">
-                <div>
-                  <h1 class="title is-2 mb-2">🏨 Gestión Diaria</h1>
-                  <p class="subtitle is-5 has-text-grey">
-                    ${format(today, "EEEE, dd 'de' MMMM yyyy", { locale: es })}
-                  </p>
-                </div>
+            <div class="room-board-header">
+              <div>
+                <h1 class="room-board-title">
+                  <i class="fas fa-hotel"></i>
+                  Gestión Diaria
+                </h1>
+                <p class="room-board-subtitle">
+                  <i class="fas fa-calendar-day"></i>
+                  ${format(today, "EEEE, dd 'de' MMMM yyyy", { locale: es })}
+                </p>
               </div>
-              <div class="level-right">
-                <a href="/hoteleria/walk-in" class="button is-success is-large is-rounded">
-                    <span class="icon is-large"><i class="fas fa-walking"></i></span>
+              <div class="room-board-actions">
+                <a href="/hoteleria/reservas/new" class="btn-room btn-room--outline">
+                    <i class="fas fa-plus"></i>
+                    <span>Nueva Reserva</span>
+                </a>
+                <a href="/hoteleria/walk-in" class="btn-room btn-room--success">
+                    <i class="fas fa-walking"></i>
                     <span>Walk-in</span>
                 </a>
               </div>
             </div>
             
             <!-- RESUMEN RÁPIDO -->
-            <div class="columns is-mobile mb-4">
-              <div class="column">
-                <div class="box has-background-success-light has-text-centered">
-                  <p class="heading">Disponibles</p>
-                  <p class="title is-3">${counts.DISPONIBLE || 0}</p>
+            <div class="summary-grid">
+              <div class="summary-card summary-card--success">
+                <div class="summary-card-content">
+                  <div class="summary-card-info">
+                    <h3>Disponibles</h3>
+                    <p class="number">${counts.DISPONIBLE || 0}</p>
+                  </div>
+                  <div class="summary-card-icon">
+                    <i class="fas fa-bed"></i>
+                  </div>
                 </div>
               </div>
-              <div class="column">
-                <div class="box has-background-danger-light has-text-centered">
-                  <p class="heading">Ocupadas</p>
-                  <p class="title is-3">${counts.OCUPADAS_TOTAL || 0}</p>
+              <div class="summary-card summary-card--danger">
+                <div class="summary-card-content">
+                  <div class="summary-card-info">
+                    <h3>Ocupadas</h3>
+                    <p class="number">${counts.OCUPADAS_TOTAL || 0}</p>
+                  </div>
+                  <div class="summary-card-icon">
+                    <i class="fas fa-user-clock"></i>
+                  </div>
                 </div>
               </div>
-              <div class="column">
-                <div class="box has-background-info-light has-text-centered">
-                  <p class="heading">Limpieza</p>
-                  <p class="title is-3">${counts.LIMPIEZA || 0}</p>
+              <div class="summary-card summary-card--info">
+                <div class="summary-card-content">
+                  <div class="summary-card-info">
+                    <h3>Limpieza</h3>
+                    <p class="number">${counts.LIMPIEZA || 0}</p>
+                  </div>
+                  <div class="summary-card-icon">
+                    <i class="fas fa-broom"></i>
+                  </div>
                 </div>
               </div>
-              <div class="column">
-                <div class="box has-background-dark has-text-white-ter has-text-centered">
-                  <p class="heading">Mantenimiento</p>
-                  <p class="title is-3 has-text-white">${counts.MANTENIMIENTO || 0}</p>
+              <div class="summary-card summary-card--dark">
+                <div class="summary-card-content">
+                  <div class="summary-card-info">
+                    <h3>Mantenimiento</h3>
+                    <p class="number">${counts.MANTENIMIENTO || 0}</p>
+                  </div>
+                  <div class="summary-card-icon">
+                    <i class="fas fa-tools"></i>
+                  </div>
                 </div>
               </div>
             </div>
             
             <!-- TABS -->
-            <div class="tabs is-boxed is-large">
-              <ul>
-                <li class="is-active" data-tab="tab-checkin">
-                  <a>
-                    <span class="icon"><i class="fas fa-calendar-check"></i></span>
+            <div class="room-tabs">
+              <ul class="room-tabs-list">
+                <li class="room-tab is-active" data-tab="tab-checkin">
+                  <a class="room-tab-link">
+                    <i class="fas fa-calendar-check"></i>
                     <span>Llegadas Hoy</span>
-                    <span class="tag is-link is-rounded ml-2">${counts.LLEGADA_HOY || 0}</span>
+                    <span class="room-tab-badge">${counts.LLEGADA_HOY || 0}</span>
                   </a>
                 </li>
-                <li data-tab="tab-checkout">
-                  <a>
-                    <span class="icon"><i class="fas fa-user-clock"></i></span>
+                <li class="room-tab" data-tab="tab-checkout">
+                  <a class="room-tab-link">
+                    <i class="fas fa-user-clock"></i>
                     <span>Ocupadas</span>
-                    <span class="tag is-danger is-rounded ml-2">${counts.OCUPADAS_TOTAL || 0}</span>
+                    <span class="room-tab-badge">${counts.OCUPADAS_TOTAL || 0}</span>
                   </a>
                 </li>
-                <li data-tab="tab-board">
-                  <a>
-                    <span class="icon"><i class="fas fa-border-all"></i></span>
-                    <span>Todas las Habitaciones</span>
-                    <span class="tag is-grey-light is-rounded ml-2">${habitaciones.length}</span>
+                <li class="room-tab" data-tab="tab-board">
+                  <a class="room-tab-link">
+                    <i class="fas fa-th-large"></i>
+                    <span>Tablero Completo</span>
+                    <span class="room-tab-badge">${habitaciones.length}</span>
                   </a>
                 </li>
               </ul>
@@ -289,26 +357,30 @@ return layout({
             <!-- TAB 1: LLEGADAS HOY -->
             <div class="tab-content" id="tab-checkin">
                 ${llegadasHoyCards.length > 0 ? `
-                    <div class="field mb-4">
-                        <div class="control has-icons-left">
-                            <input class="input is-large is-rounded" type="text" id="search-checkin-input" placeholder="🔍 Buscar por nombre o documento...">
-                            <span class="icon is-left"><i class="fas fa-search"></i></span>
+                    <div class="search-container">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search search-icon"></i>
+                            <input class="search-input" type="text" id="search-checkin-input" placeholder="Buscar por nombre, documento o habitación...">
                         </div>
                     </div>
-                    <div class="columns is-multiline is-mobile" id="checkin-list-wrapper">
+                    <div class="rooms-grid" id="checkin-list-wrapper">
                         ${checkinCardsHtml}
                     </div>
                 ` : `
-                    <div class="notification is-info is-light">
-                        <p class="has-text-centered is-size-5">
-                            <span class="icon is-large"><i class="fas fa-info-circle fa-2x"></i></span>
-                        </p>
-                        <p class="has-text-centered is-size-4 mt-3">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <h3 class="empty-state-title">
                             No hay llegadas programadas para hoy
+                        </h3>
+                        <p class="empty-state-description">
+                            Las reservas confirmadas para hoy aparecerán en esta sección
                         </p>
-                        <p class="has-text-centered has-text-grey mt-2">
-                            Las reservas confirmadas aparecerán aquí
-                        </p>
+                        <a href="/hoteleria/reservas/new" class="btn-room btn-room--primary">
+                            <i class="fas fa-plus"></i>
+                            <span>Crear Nueva Reserva</span>
+                        </a>
                     </div>
                 `}
             </div>
@@ -316,22 +388,25 @@ return layout({
             <!-- TAB 2: OCUPADAS -->
             <div class="tab-content is-hidden" id="tab-checkout">
                  ${ocupadasCards.length > 0 ? `
-                    <div class="field mb-4">
-                        <div class="control has-icons-left">
-                            <input class="input is-large is-rounded" type="text" id="search-checkout-input" placeholder="🔍 Buscar por nombre o documento...">
-                            <span class="icon is-left"><i class="fas fa-search"></i></span>
+                    <div class="search-container">
+                        <div class="search-wrapper">
+                            <i class="fas fa-search search-icon"></i>
+                            <input class="search-input" type="text" id="search-checkout-input" placeholder="Buscar por nombre, documento o habitación...">
                         </div>
                     </div>
-                    <div class="columns is-multiline is-mobile" id="checkout-list-wrapper">
+                    <div class="rooms-grid" id="checkout-list-wrapper">
                         ${ocupadasCardsHtml}
                     </div>
                 ` : `
-                    <div class="notification is-warning is-light">
-                        <p class="has-text-centered is-size-5">
-                            <span class="icon is-large"><i class="fas fa-bed fa-2x"></i></span>
-                        </p>
-                        <p class="has-text-centered is-size-4 mt-3">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-bed"></i>
+                        </div>
+                        <h3 class="empty-state-title">
                             No hay habitaciones ocupadas
+                        </h3>
+                        <p class="empty-state-description">
+                            Todas las habitaciones están disponibles o en mantenimiento
                         </p>
                     </div>
                 `}
@@ -340,38 +415,38 @@ return layout({
             <!-- TAB 3: TABLERO COMPLETO -->
             <div class="tab-content is-hidden" id="tab-board">
                 <!-- Filtros Rápidos -->
-                <div class="buttons mb-4">
-                    <button class="button is-rounded filter-status" data-status-filter="TODOS">
-                        <span class="icon"><i class="fas fa-border-all"></i></span>
+                <div class="filter-bar">
+                    <button class="filter-btn is-active filter-status" data-status-filter="TODOS">
+                        <i class="fas fa-th-large"></i>
                         <span>Todas (${habitaciones.length})</span>
                     </button>
-                    <button class="button is-success is-rounded is-light filter-status" data-status-filter="DISPONIBLE">
-                        <span class="icon"><i class="fas fa-bed"></i></span>
+                    <button class="filter-btn filter-status" data-status-filter="DISPONIBLE">
+                        <i class="fas fa-bed"></i>
                         <span>Disponibles (${counts.DISPONIBLE || 0})</span>
                     </button>
-                    <button class="button is-danger is-rounded is-light filter-status" data-status-filter="OCUPADA">
-                        <span class="icon"><i class="fas fa-user"></i></span>
+                    <button class="filter-btn filter-status" data-status-filter="OCUPADA">
+                        <i class="fas fa-user-clock"></i>
                         <span>Ocupadas (${counts.OCUPADAS_TOTAL || 0})</span>
                     </button>
-                    <button class="button is-info is-rounded is-light filter-status" data-status-filter="LIMPIEZA">
-                        <span class="icon"><i class="fas fa-broom"></i></span>
+                    <button class="filter-btn filter-status" data-status-filter="LIMPIEZA">
+                        <i class="fas fa-broom"></i>
                         <span>Limpieza (${counts.LIMPIEZA || 0})</span>
                     </button>
-                    <button class="button is-dark is-rounded is-light filter-status" data-status-filter="MANTENIMIENTO">
-                        <span class="icon"><i class="fas fa-tools"></i></span>
+                    <button class="filter-btn filter-status" data-status-filter="MANTENIMIENTO">
+                        <i class="fas fa-tools"></i>
                         <span>Mantenimiento (${counts.MANTENIMIENTO || 0})</span>
                     </button>
                 </div>
                 
-                <div class="columns is-multiline is-mobile" id="room-board">
+                <div class="rooms-grid" id="room-board">
                     ${allRoomCardsHtml}
                 </div>
             </div>
 
-            <div id="status-message" class="notification is-hidden mt-4"></div>
+            <div id="status-message" class="status-message is-hidden"></div>
         
-        </div> 
-    </section>
+        </div>
+    </div>
 
     <script src="/js/room-board.js"></script> 
     `,

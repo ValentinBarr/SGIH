@@ -8,19 +8,31 @@ class HabitacionRepository {
      * Incluye información de la reserva activa si la hay.
      */
 async getStatusBoard() {
-    // 1. Definir fecha de hoy (solo fecha, sin hora)
+    // 1. Definir fecha de hoy (solo fecha, sin hora) - Simplificado
     const today = new Date();
-    console.log('🔍 DEBUG - Fecha de hoy:', today);
-    // Ajustar a zona horaria Argentina (UTC-3)
-    const argentinaOffset = -3 * 60; // -3 horas en minutos
-    const localOffset = today.getTimezoneOffset(); // Offset del servidor
-    const diffMinutes = argentinaOffset - localOffset;
-    
-    today.setMinutes(today.getMinutes() + diffMinutes);
     today.setHours(0, 0, 0, 0);
+    console.log('🔍 DEBUG - Fecha de hoy (inicio):', today.toISOString());
     
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+    console.log('🔍 DEBUG - Fecha de mañana (fin):', tomorrow.toISOString());
+    
+    // Verificar si hay reservas CONFIRMADAS para hoy
+    const reservasHoy = await prisma.reserva.findMany({
+        where: {
+            estado: EstadoReserva.CONFIRMADA,
+            fechaCheckIn: {
+                gte: today,
+                lt: tomorrow,
+            },
+        },
+        include: { Huesped: true, Habitacion: true },
+    });
+    
+    console.log(`🔍 Total de reservas CONFIRMADAS para hoy: ${reservasHoy.length}`);
+    reservasHoy.forEach(r => {
+        console.log(`  - Reserva ${r.codigoReserva}: Habitación ${r.Habitacion?.numero}, Huésped: ${r.Huesped?.nombre} ${r.Huesped?.apellido}`);
+    });
 
     // 2. Obtener todas las habitaciones
     const habitaciones = await prisma.habitacion.findMany({
@@ -52,6 +64,8 @@ async getStatusBoard() {
         
         // CASO 2: Habitación DISPONIBLE → Buscar si hay llegada HOY
         if (hab.estado === EstadoHabitacion.DISPONIBLE) {
+            console.log(`🔍 Buscando reservas para habitación ${hab.numero} (ID: ${hab.id_hab})`);
+            
             const reservaHoy = await prisma.reserva.findFirst({
                 where: {
                     id_hab: hab.id_hab,
@@ -65,6 +79,16 @@ async getStatusBoard() {
                 include: { Huesped: true },
                 orderBy: { fechaCheckIn: 'asc' },
             });
+            
+            if (reservaHoy) {
+                console.log(`✅ Encontrada reserva para hoy en habitación ${hab.numero}:`, {
+                    codigoReserva: reservaHoy.codigoReserva,
+                    fechaCheckIn: reservaHoy.fechaCheckIn,
+                    huesped: `${reservaHoy.Huesped?.nombre} ${reservaHoy.Huesped?.apellido}`
+                });
+            } else {
+                console.log(`❌ No hay reservas para hoy en habitación ${hab.numero}`);
+            }
             
             return {
                 ...hab,
