@@ -109,6 +109,11 @@ body.sidebar-collapsed .sidebar__submenu {
   display: none;
 }
 
+/* Ocultar elementos de submenús anidados cuando sidebar está colapsado */
+body.sidebar-collapsed .sidebar__nested-group {
+  display: none;
+}
+
 /* Mobile drawer */
 @media (max-width:900px){
   .layout{ grid-template-columns:1fr; }
@@ -166,6 +171,62 @@ body.sidebar-collapsed .sidebar__submenu {
 .sidebar__sublink{display:block;padding:6px 8px;border-radius:8px;color:#9ca3af;text-decoration:none;}
 .sidebar__sublink:hover{color:#fff;background:rgba(148,163,184,.15);}
 .sidebar__sublink.is-active{color:#a78bfa;background:rgba(167,139,250,.15);}
+
+/* Divisor dentro de submenú */
+.sidebar__submenu .sidebar__sub-divider {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 8px 6px 8px;
+  margin-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+/* Submenús anidados (segundo nivel) */
+.sidebar__nested-group {
+  margin-top: 8px;
+}
+
+.sidebar__nested-divider {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 8px 8px 8px;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  margin-top: 4px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.sidebar__nested-divider:hover {
+  background: rgba(148, 163, 184, 0.1);
+  color: #cbd5e1;
+}
+
+.sidebar__chevron--nested {
+  font-size: 14px;
+  padding: 0;
+  margin-left: auto;
+}
+
+.sidebar__submenu--nested {
+  margin: 4px 0 4px 12px;
+  padding-left: 8px;
+  border-left: 2px solid rgba(148, 163, 184, 0.2);
+}
+
+.sidebar__submenu--nested .sidebar__sublink {
+  font-size: 0.85rem;
+  padding: 5px 8px;
+}
 
 
 /* —— Card / layout ——————————————————————————— */

@@ -48,10 +48,25 @@ module.exports = ({ content }) => {
               <li><a class="sidebar__sublink" href="/hoteleria/huespedes">Huéspedes</a></li>
               <li><a class="sidebar__sublink" href="/hoteleria/calendario">Calendario</a></li>
 
-              <li class="sidebar__divider">Configuración</li>              
-              <li><a class="sidebar__sublink" href="/hoteleria/habitaciones">Habitaciones</a></li>
-              <li><a class="sidebar__sublink" href="/hoteleria/tipos-habitacion">Tipos de Habitación</a></li>
-              <li><a class="sidebar__sublink" href="/hoteleria/comodidades">Comodidades</a></li>
+              <!-- Submenú anidado: Configuración -->
+              <li class="sidebar__nested-group" id="configuracion-group">
+                <div class="sidebar__nested-divider">
+                  <span>Configuración</span>
+                  <button
+                    id="configuracion-toggle"
+                    class="sidebar__chevron sidebar__chevron--nested"
+                    type="button"
+                    aria-label="Expandir Configuración"
+                    aria-expanded="false"
+                    aria-controls="configuracion-sub"
+                  >▸</button>
+                </div>
+                <ul id="configuracion-sub" class="sidebar__submenu sidebar__submenu--nested" hidden>
+                  <li><a class="sidebar__sublink" href="/hoteleria/habitaciones">Habitaciones</a></li>
+                  <li><a class="sidebar__sublink" href="/hoteleria/tipos-habitacion">Tipos de Habitación</a></li>
+                  <li><a class="sidebar__sublink" href="/hoteleria/comodidades">Comodidades</a></li>
+                </ul>
+              </li>
             </ul>
           </div>
 

@@ -16,19 +16,16 @@ const proveedorRouter = require('./routes/admin/compras/proveedores.js');
 const remitosRouter = require('./routes/admin/compras/remitos');
 const ordenesRouter = require('./routes/admin/compras/ordenes');
 const facturasRouter = require('./routes/admin/compras/facturas');
-const pagosRouter = require('./routes/admin/compras/pagos'); // <-- ✅ LÍNEA AÑADIDA
+const pagosRouter = require('./routes/admin/compras/pagos'); 
 
 // Rutas de Hoteleria
+const dashboardHoteleriaRouter = require('./routes/admin/hoteleria/dashboard.js');
 const tiposHabitacionRouter = require('./routes/admin/hoteleria/tiposHabitacion.js');
 const comodidadesRouter = require('./routes/admin/hoteleria/comodidades.js');
 const habitacionesRouter = require('./routes/admin/hoteleria/habitaciones.js');
 const huespedesRouter = require('./routes/admin/hoteleria/huespedes.js');
 const reservasRouter = require('./routes/admin/hoteleria/reservas.js');
 const checkRouter = require('./routes/admin/hoteleria/check.js');
-
-
-
-
 
 const app = express();
 
@@ -68,6 +65,8 @@ app.use(ordenesRouter);
 app.use(facturasRouter);
 app.use(pagosRouter);
 
+// Rutas de Módulo Hotelería
+app.use(dashboardHoteleriaRouter);
 app.use(tiposHabitacionRouter);
 app.use(comodidadesRouter);
 app.use(habitacionesRouter);
