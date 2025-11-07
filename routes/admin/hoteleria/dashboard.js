@@ -23,10 +23,12 @@ router.get('/hoteleria/dashboard', async (req, res) => {
 /**
  * GET /api/hoteleria/dashboard/kpis
  * Retorna todos los KPIs principales en una sola llamada
+ * Query params: fechaDesde, fechaHasta (opcional)
  */
 router.get('/api/hoteleria/dashboard/kpis', async (req, res) => {
     try {
-        const kpis = await dashboardRepo.getAllKPIs();
+        const { fechaDesde, fechaHasta } = req.query;
+        const kpis = await dashboardRepo.getAllKPIs(fechaDesde, fechaHasta);
         res.json(kpis);
     } catch (error) {
         console.error('Error al obtener KPIs:', error);
@@ -41,12 +43,22 @@ router.get('/api/hoteleria/dashboard/kpis', async (req, res) => {
 /**
  * GET /api/hoteleria/dashboard/ocupacion-adr
  * Gráfico 1: Ocupación y ADR histórico
- * Query params: dias (default: 30)
+ * Query params: dias (default: 30), fechaDesde, fechaHasta
  */
 router.get('/api/hoteleria/dashboard/ocupacion-adr', async (req, res) => {
     try {
-        const dias = parseInt(req.query.dias) || 30;
-        const data = await dashboardRepo.getOcupacionADRHistorico(dias);
+        const { dias, fechaDesde, fechaHasta } = req.query;
+        
+        let data;
+        if (fechaDesde && fechaHasta) {
+            // Usar rango de fechas
+            data = await dashboardRepo.getOcupacionADRHistorico(null, fechaDesde, fechaHasta);
+        } else {
+            // Usar días
+            const diasNum = parseInt(dias) || 30;
+            data = await dashboardRepo.getOcupacionADRHistorico(diasNum);
+        }
+        
         res.json(data);
     } catch (error) {
         console.error('Error al obtener ocupación/ADR:', error);
@@ -57,10 +69,12 @@ router.get('/api/hoteleria/dashboard/ocupacion-adr', async (req, res) => {
 /**
  * GET /api/hoteleria/dashboard/revenue-tipo
  * Gráfico 2: Revenue por tipo de habitación
+ * Query params: fechaDesde, fechaHasta
  */
 router.get('/api/hoteleria/dashboard/revenue-tipo', async (req, res) => {
     try {
-        const data = await dashboardRepo.getRevenuePorTipo();
+        const { fechaDesde, fechaHasta } = req.query;
+        const data = await dashboardRepo.getRevenuePorTipo(fechaDesde, fechaHasta);
         res.json(data);
     } catch (error) {
         console.error('Error al obtener revenue por tipo:', error);
@@ -155,6 +169,24 @@ router.get('/api/hoteleria/dashboard/habitaciones-criticas', async (req, res) =>
     } catch (error) {
         console.error('Error al obtener habitaciones críticas:', error);
         res.status(500).json({ error: 'Error al obtener habitaciones críticas' });
+    }
+});
+
+/**
+ * GET /api/hoteleria/dashboard/rentabilidad
+ * Gráfico 6: Rentabilidad - Ingresos vs Egresos
+ * Query params: dias (default: 30), fechaDesde, fechaHasta
+ */
+router.get('/api/hoteleria/dashboard/rentabilidad', async (req, res) => {
+    try {
+        const dias = parseInt(req.query.dias) || 30;
+        const fechaDesde = req.query.fechaDesde || null;
+        const fechaHasta = req.query.fechaHasta || null;
+        const data = await dashboardRepo.getRentabilidad(dias, fechaDesde, fechaHasta);
+        res.json(data);
+    } catch (error) {
+        console.error('Error al obtener datos de rentabilidad:', error);
+        res.status(500).json({ error: 'Error al obtener datos de rentabilidad' });
     }
 });
 

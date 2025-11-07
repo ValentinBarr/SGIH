@@ -11,7 +11,7 @@ router.get('/hoteleria/reportes', async (req, res) => {
     try {
         console.log('📊 Accediendo a reportes de hotelería');
         
-        const { tipo = 'diario', fecha } = req.query;
+        const { tipo = 'diario', fecha, fechaDesde, fechaHasta } = req.query;
         let fechaSeleccionada = new Date();
         
         // Procesar fecha seleccionada
@@ -29,7 +29,9 @@ router.get('/hoteleria/reportes', async (req, res) => {
         
         let reporteData = {
             tipoReporte: tipo,
-            fechaSeleccionada: fechaSeleccionada
+            fechaSeleccionada: fechaSeleccionada,
+            fechaDesde: fechaDesde || null,
+            fechaHasta: fechaHasta || null
         };
         
         try {
@@ -46,8 +48,12 @@ router.get('/hoteleria/reportes', async (req, res) => {
                     reporteData.reporteMensual = await ReportesRepo.getReporteMensual(fechaSeleccionada);
                     break;
                     
-                case 'comparativo':
-                    reporteData.comparativas = await ReportesRepo.getEstadisticasComparativas(fechaSeleccionada);
+                case 'rango':
+                    if (fechaDesde && fechaHasta) {
+                        reporteData.reporteRango = await ReportesRepo.getReporteRango(fechaDesde, fechaHasta);
+                    } else {
+                        reporteData.error = 'Debe seleccionar ambas fechas (Desde y Hasta)';
+                    }
                     break;
                     
                 default:

@@ -368,6 +368,164 @@ class ReportesRepository {
 
         return huespedes;
     }
+
+    /**
+     * Genera un reporte analítico por rango de fechas
+     */
+    async getReporteRango(fechaDesde, fechaHasta) {
+        const inicioRango = startOfDay(new Date(fechaDesde));
+        const finRango = endOfDay(new Date(fechaHasta));
+        const diasEnRango = Math.ceil((finRango - inicioRango) / (1000 * 60 * 60 * 24)) + 1;
+
+        // Obtener todas las reservas en el rango
+        const reservas = await prisma.reserva.findMany({
+            where: {
+                OR: [
+                    {
+                        fechaCheckIn: {
+                            gte: inicioRango,
+                            lte: finRango
+                        }
+                    },
+                    {
+                        fechaCheckOut: {
+                            gte: inicioRango,
+                            lte: finRango
+                        }
+                    }
+                ]
+            },
+            include: {
+                Habitacion: {
+                    include: {
+                        TipoHabitacion: true
+                    }
+                },
+                Huesped: true,
+                PagoReserva: true
+            }
+        });
+
+        // Calcular ingresos y pagos
+        const pagos = await prisma.pagoReserva.findMany({
+            where: {
+                fechaPago: {
+                    gte: inicioRango,
+                    lte: finRango
+                },
+                estado: 'COMPLETADO'
+            }
+        });
+
+        const ingresosTotal = pagos.reduce((sum, p) => sum + parseFloat(p.monto), 0);
+        const ingresoDiarioPromedio = diasEnRango > 0 ? ingresosTotal / diasEnRango : 0;
+
+        // Calcular ocupación
+        const totalHabitaciones = await prisma.habitacion.count({
+            where: { activo: true }
+        });
+
+        const reservasActivas = reservas.filter(r => 
+            r.estado === EstadoReserva.CHECKED_IN || r.estado === EstadoReserva.CHECKED_OUT
+        );
+        
+        const ocupacionPromedio = totalHabitaciones > 0 
+            ? ((reservasActivas.length / (totalHabitaciones * diasEnRango)) * 100).toFixed(1)
+            : 0;
+
+        // Calcular ADR (Average Daily Rate) - Tarifa promedio por habitación
+        const adr = reservasActivas.length > 0 
+            ? ingresosTotal / reservasActivas.length 
+            : 0;
+
+        // Calcular RevPAR (Revenue Per Available Room)
+        const revpar = totalHabitaciones > 0 
+            ? ingresosTotal / (totalHabitaciones * diasEnRango)
+            : 0;
+
+        // Análisis de conversión
+        const totalReservas = reservas.length;
+        const reservasCompletadas = reservas.filter(r => r.estado === EstadoReserva.CHECKED_OUT).length;
+        const reservasCanceladas = reservas.filter(r => r.estado === EstadoReserva.CANCELADA).length;
+        const tasaCancelacion = totalReservas > 0 ? (reservasCanceladas / totalReservas * 100).toFixed(1) : 0;
+        const tasaCompletacion = totalReservas > 0 ? (reservasCompletadas / totalReservas * 100).toFixed(1) : 0;
+
+        // Análisis por tipo de habitación
+        const tiposMap = {};
+        reservasActivas.forEach(r => {
+            if (r.Habitacion?.TipoHabitacion) {
+                const tipoNombre = r.Habitacion.TipoHabitacion.nombre;
+                if (!tiposMap[tipoNombre]) {
+                    tiposMap[tipoNombre] = {
+                        nombre: tipoNombre,
+                        reservas: 0,
+                        ingresos: 0
+                    };
+                }
+                tiposMap[tipoNombre].reservas++;
+                tiposMap[tipoNombre].ingresos += parseFloat(r.total || 0);
+            }
+        });
+
+        const rendimientoPorTipo = Object.values(tiposMap)
+            .map(tipo => ({
+                ...tipo,
+                ingresoPromedio: tipo.reservas > 0 ? tipo.ingresos / tipo.reservas : 0,
+                participacion: totalReservas > 0 ? (tipo.reservas / totalReservas * 100).toFixed(1) : 0
+            }))
+            .sort((a, b) => b.ingresos - a.ingresos);
+
+        // Top habitaciones por rentabilidad
+        const habitacionesMap = {};
+        reservasActivas.forEach(r => {
+            if (r.Habitacion) {
+                const habId = r.Habitacion.id_hab;
+                if (!habitacionesMap[habId]) {
+                    habitacionesMap[habId] = {
+                        numero: r.Habitacion.numero,
+                        tipo: r.Habitacion.TipoHabitacion?.nombre || 'N/A',
+                        reservas: 0,
+                        ingresos: 0
+                    };
+                }
+                habitacionesMap[habId].reservas++;
+                habitacionesMap[habId].ingresos += parseFloat(r.total || 0);
+            }
+        });
+
+        const topHabitaciones = Object.values(habitacionesMap)
+            .map(hab => ({
+                ...hab,
+                ingresoPorReserva: hab.reservas > 0 ? hab.ingresos / hab.reservas : 0
+            }))
+            .sort((a, b) => b.ingresos - a.ingresos)
+            .slice(0, 5);
+
+        return {
+            // Período
+            diasEnRango,
+            
+            // KPIs Principales
+            ingresosTotal: parseFloat(ingresosTotal.toFixed(2)),
+            ingresoDiarioPromedio: parseFloat(ingresoDiarioPromedio.toFixed(2)),
+            ocupacionPromedio: parseFloat(ocupacionPromedio),
+            adr: parseFloat(adr.toFixed(2)),
+            revpar: parseFloat(revpar.toFixed(2)),
+            
+            // Métricas de Conversión
+            totalReservas,
+            reservasCompletadas,
+            reservasCanceladas,
+            tasaCancelacion: parseFloat(tasaCancelacion),
+            tasaCompletacion: parseFloat(tasaCompletacion),
+            
+            // Análisis por Tipo
+            rendimientoPorTipo,
+            
+            // Top Habitaciones
+            topHabitaciones
+        };
+    }
 }
 
 module.exports = new ReportesRepository();

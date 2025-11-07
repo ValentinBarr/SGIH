@@ -55,9 +55,17 @@ class ReservasRepository {
         }
 
         // 4. Filtro de Rango de Fechas (Check-in)
+        // Por defecto, mostrar solo reservas desde hoy en adelante
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
         if (fechaDesde) {
             where.fechaCheckIn = { ...where.fechaCheckIn, gte: new Date(fechaDesde) };
+        } else {
+            // Si no se especifica fechaDesde, filtrar desde hoy
+            where.fechaCheckIn = { ...where.fechaCheckIn, gte: hoy };
         }
+        
         if (fechaHasta) {
             where.fechaCheckIn = { ...where.fechaCheckIn, lte: new Date(fechaHasta) };
         }
@@ -89,9 +97,9 @@ class ReservasRepository {
                 {
                     estado: 'asc' // CANCELADA viene después de CHECKED_IN, CONFIRMADA, etc.
                 },
-                // Luego por fecha de check-in descendente
+                // Luego por fecha de check-in ascendente (más próximas primero)
                 {
-                    fechaCheckIn: 'desc'
+                    fechaCheckIn: 'asc'
                 }
             ],
             take: PAGE_SIZE,
@@ -117,8 +125,8 @@ class ReservasRepository {
             if (a.estado === 'CANCELADA' && b.estado !== 'CANCELADA') return 1;
             if (a.estado !== 'CANCELADA' && b.estado === 'CANCELADA') return -1;
             
-            // Si ambas son CANCELADA o ambas no lo son, ordenar por fecha
-            return new Date(b.fechaCheckIn) - new Date(a.fechaCheckIn);
+            // Si ambas son CANCELADA o ambas no lo son, ordenar por fecha ascendente (más próximas primero)
+            return new Date(a.fechaCheckIn) - new Date(b.fechaCheckIn);
         });
 
         return { reservas: reservasOrdenadas, totalPages, currentPage, totalReservas };

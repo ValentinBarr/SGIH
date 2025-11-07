@@ -186,8 +186,92 @@ class DashboardRepository {
 
     /**
      * Obtiene todos los KPIs en una sola llamada
+     * @param {string} fechaDesde - Fecha inicio del rango (opcional)
+     * @param {string} fechaHasta - Fecha fin del rango (opcional)
      */
-    async getAllKPIs() {
+    async getAllKPIs(fechaDesde = null, fechaHasta = null) {
+        // Si hay filtros de fecha, calcular KPIs del período
+        if (fechaDesde && fechaHasta) {
+            const inicioRango = startOfDay(new Date(fechaDesde));
+            const finRango = endOfDay(new Date(fechaHasta));
+            
+            // Ocupación promedio del período
+            const totalHabitaciones = await prisma.habitacion.count({ where: { activo: true } });
+            const diasEnRango = Math.ceil((finRango - inicioRango) / (1000 * 60 * 60 * 24)) + 1;
+            
+            const reservasActivas = await prisma.reserva.count({
+                where: {
+                    estado: { in: [EstadoReserva.CHECKED_IN, EstadoReserva.CHECKED_OUT] },
+                    fechaCheckIn: { lte: finRango },
+                    fechaCheckOut: { gt: inicioRango }
+                }
+            });
+            
+            const ocupacionPromedio = totalHabitaciones > 0 
+                ? ((reservasActivas / (totalHabitaciones * diasEnRango)) * 100).toFixed(1)
+                : 0;
+            
+            // ADR del período
+            const reservasPeriodo = await prisma.reserva.findMany({
+                where: {
+                    fechaCheckIn: { gte: inicioRango, lte: finRango },
+                    estado: { in: [EstadoReserva.CHECKED_IN, EstadoReserva.CHECKED_OUT] }
+                },
+                select: { total: true, fechaCheckIn: true, fechaCheckOut: true }
+            });
+            
+            let adrPeriodo = 0;
+            if (reservasPeriodo.length > 0) {
+                const totalRevenue = reservasPeriodo.reduce((sum, r) => sum + parseFloat(r.total), 0);
+                const totalNoches = reservasPeriodo.reduce((sum, r) => {
+                    const noches = differenceInDays(new Date(r.fechaCheckOut), new Date(r.fechaCheckIn));
+                    return sum + (noches > 0 ? noches : 1);
+                }, 0);
+                adrPeriodo = totalNoches > 0 ? (totalRevenue / totalNoches) : 0;
+            }
+            
+            // RevPAR del período
+            const revparPeriodo = (parseFloat(ocupacionPromedio) / 100) * adrPeriodo;
+            
+            // Ingresos totales del período
+            const pagosPeriodo = await prisma.pagoReserva.findMany({
+                where: {
+                    fechaPago: { gte: inicioRango, lte: finRango },
+                    estado: 'COMPLETADO'
+                }
+            });
+            const ingresosTotales = pagosPeriodo.reduce((sum, p) => sum + parseFloat(p.monto), 0);
+            
+            return {
+                ocupacionActual: {
+                    porcentaje: parseFloat(ocupacionPromedio),
+                    habitacionesOcupadas: Math.round(reservasActivas / diasEnRango),
+                    totalHabitaciones,
+                    tendencia: null // No hay tendencia en período personalizado
+                },
+                adr: {
+                    valor: parseFloat(adrPeriodo.toFixed(2)),
+                    periodo: `${diasEnRango} días`
+                },
+                revpar: {
+                    valor: parseFloat(revparPeriodo.toFixed(2)),
+                    progreso: Math.min(parseFloat(ocupacionPromedio), 100)
+                },
+                revenueHoy: {
+                    valor: parseFloat(ingresosTotales.toFixed(2)),
+                    proyeccionMensual: 0 // No aplica en período personalizado
+                },
+                checkinsHoy: reservasActivas,
+                checkoutsHoy: await prisma.reserva.count({
+                    where: {
+                        fechaCheckOut: { gte: inicioRango, lte: finRango },
+                        estado: EstadoReserva.CHECKED_OUT
+                    }
+                })
+            };
+        }
+        
+        // Sin filtros, usar KPIs actuales
         const [ocupacion, adr, revpar, revenue, checkins, checkouts] = await Promise.all([
             this.getOcupacionActual(),
             this.getADR(),
@@ -212,16 +296,29 @@ class DashboardRepository {
     // ====================================================================
 
     /**
-     * GRÁFICO 1: Ocupación y ADR - Últimos 30 días
+     * GRÁFICO 1: Ocupación y ADR - Histórico
+     * @param {number} dias - Número de días hacia atrás (si no se usan fechas)
+     * @param {string} fechaDesde - Fecha inicio del rango
+     * @param {string} fechaHasta - Fecha fin del rango
      */
-    async getOcupacionADRHistorico(dias = 30) {
+    async getOcupacionADRHistorico(dias = 30, fechaDesde = null, fechaHasta = null) {
         const totalHabitaciones = await prisma.habitacion.count({ where: { activo: true } });
         const data = [];
 
-        for (let i = dias - 1; i >= 0; i--) {
-            const fecha = subDays(new Date(), i);
-            const inicioDia = startOfDay(fecha);
-            const finDia = endOfDay(fecha);
+        // Determinar el rango de fechas
+        let fechaInicio, fechaFin;
+        if (fechaDesde && fechaHasta) {
+            fechaInicio = startOfDay(new Date(fechaDesde));
+            fechaFin = endOfDay(new Date(fechaHasta));
+        } else {
+            fechaInicio = subDays(new Date(), dias - 1);
+            fechaFin = new Date();
+        }
+
+        // Iterar por cada día en el rango
+        for (let fecha = new Date(fechaInicio); fecha <= fechaFin; fecha.setDate(fecha.getDate() + 1)) {
+            const inicioDia = startOfDay(new Date(fecha));
+            const finDia = endOfDay(new Date(fecha));
 
             // Habitaciones ocupadas ese día
             const ocupadas = await prisma.reserva.count({
@@ -268,11 +365,20 @@ class DashboardRepository {
     }
 
     /**
-     * GRÁFICO 2: Revenue por Tipo de Habitación - Mes Actual
+     * GRÁFICO 2: Revenue por Tipo de Habitación
+     * @param {string} fechaDesde - Fecha inicio del rango (opcional)
+     * @param {string} fechaHasta - Fecha fin del rango (opcional)
      */
-    async getRevenuePorTipo() {
-        const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-        const finMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0);
+    async getRevenuePorTipo(fechaDesde = null, fechaHasta = null) {
+        // Determinar el rango de fechas
+        let inicioMes, finMes;
+        if (fechaDesde && fechaHasta) {
+            inicioMes = startOfDay(new Date(fechaDesde));
+            finMes = endOfDay(new Date(fechaHasta));
+        } else {
+            inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+            finMes = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0);
+        }
 
         const reservas = await prisma.reserva.findMany({
             where: {
@@ -538,6 +644,65 @@ class DashboardRepository {
             estado: h.estado
         }));
     }
+
+    /**
+     * GRÁFICO 6: Rentabilidad - Ingresos vs Egresos
+     * Compara ingresos de reservas con egresos de órdenes de pago
+     */
+    async getRentabilidad(dias = 30, fechaDesde = null, fechaHasta = null) {
+        const data = [];
+        
+        // Determinar rango de fechas
+        let fechaInicio, fechaFin;
+        if (fechaDesde && fechaHasta) {
+            fechaInicio = new Date(fechaDesde);
+            fechaFin = new Date(fechaHasta);
+        } else {
+            fechaFin = new Date();
+            fechaInicio = subDays(fechaFin, dias - 1);
+        }
+
+        // Iterar por cada día en el rango
+        for (let fecha = new Date(fechaInicio); fecha <= fechaFin; fecha.setDate(fecha.getDate() + 1)) {
+            const inicioDia = startOfDay(new Date(fecha));
+            const finDia = endOfDay(new Date(fecha));
+
+            // INGRESOS: Pagos de reservas del día
+            const pagosDelDia = await prisma.pagoReserva.findMany({
+                where: {
+                    fechaPago: {
+                        gte: inicioDia,
+                        lte: finDia
+                    },
+                    estado: 'COMPLETADO'
+                }
+            });
+            const ingresos = pagosDelDia.reduce((sum, p) => sum + parseFloat(p.monto), 0);
+
+            // EGRESOS: Órdenes de pago (Pagos a proveedores)
+            const egresosDelDia = await prisma.pago.findMany({
+                where: {
+                    fecha_pago: {
+                        gte: inicioDia,
+                        lte: finDia
+                    }
+                }
+            });
+            const egresos = egresosDelDia.reduce((sum, p) => sum + parseFloat(p.total_pago), 0);
+
+            // Calcular utilidad
+            const utilidad = ingresos - egresos;
+
+            data.push({
+                fecha: format(new Date(fecha), 'yyyy-MM-dd'),
+                ingresos: parseFloat(ingresos.toFixed(2)),
+                egresos: parseFloat(egresos.toFixed(2)),
+                utilidad: parseFloat(utilidad.toFixed(2))
+            });
+        }
+
+        return data;
+    }
 }
 
 const dashboardRepo = new DashboardRepository();
@@ -551,5 +716,6 @@ module.exports = {
     getRevenueComparativo: dashboardRepo.getRevenueComparativo.bind(dashboardRepo),
     getCheckinsDetalle: dashboardRepo.getCheckinsDetalle.bind(dashboardRepo),
     getCheckoutsDetalle: dashboardRepo.getCheckoutsDetalle.bind(dashboardRepo),
-    getHabitacionesCriticas: dashboardRepo.getHabitacionesCriticas.bind(dashboardRepo)
+    getHabitacionesCriticas: dashboardRepo.getHabitacionesCriticas.bind(dashboardRepo),
+    getRentabilidad: dashboardRepo.getRentabilidad.bind(dashboardRepo)
 };

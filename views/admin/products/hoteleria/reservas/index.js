@@ -577,14 +577,23 @@ module.exports = ({
                           
                           <div class="field mb-3">
                             <label class="label">Seleccionar Huésped *</label>
-                            <div class="control">
-                              <div class="select is-fullwidth">
-                                <select id="select-huesped-funcional" name="id_huesped" required>
-                                  <option value="">Seleccione un huésped...</option>
-                                  ${huespedes.map(h => `<option value="${h.id_huesped}">${h.apellido}, ${h.nombre}</option>`).join('')}
-                                </select>
+                            <div class="control has-icons-left" style="position: relative;">
+                              <input 
+                                type="text" 
+                                id="huesped_search_input_funcional" 
+                                class="input" 
+                                placeholder="Buscar huésped por nombre, apellido o documento..."
+                                autocomplete="off"
+                              >
+                              <span class="icon is-small is-left">
+                                <i class="fas fa-search"></i>
+                              </span>
+                              <input type="hidden" name="id_huesped" id="select-huesped-funcional" required>
+                              <div id="huesped_dropdown_funcional" class="dropdown-menu" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; max-height: 300px; overflow-y: auto; background: white; border: 1px solid #dbdbdb; border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); margin-top: 4px;">
+                                <div class="dropdown-content" id="huesped_dropdown_content_funcional"></div>
                               </div>
                             </div>
+                            <p class="help">Escriba para buscar o haga clic en el botón + para agregar un nuevo huésped</p>
                           </div>
 
                           <button type="button" class="button is-light is-fullwidth mt-3" id="btn-nuevo-huesped-funcional">
@@ -980,10 +989,124 @@ module.exports = ({
             }
           }
 
+          // Datos de huéspedes para el buscador
+          const huespedData = ${JSON.stringify(huespedes.map(h => ({
+            id_huesped: h.id_huesped,
+            nombre: h.nombre,
+            apellido: h.apellido,
+            documento: h.documento || 'N/D',
+            telefono: h.telefono || '',
+            email: h.email || '',
+            displayText: `${h.apellido}, ${h.nombre} (${h.documento || 'N/D'})`
+          })))};
+
           // Inicialización de la página
           document.addEventListener('DOMContentLoaded', () => {
             // Ejecutar verificación automáticamente
             verificarReservasHoy();
+
+            // Inicializar buscador de huéspedes
+            const searchInput = document.getElementById('huesped_search_input_funcional');
+            const hiddenInput = document.getElementById('select-huesped-funcional');
+            const dropdown = document.getElementById('huesped_dropdown_funcional');
+            const dropdownContent = document.getElementById('huesped_dropdown_content_funcional');
+            
+            if (searchInput && hiddenInput && dropdown && dropdownContent) {
+              // Función para filtrar huéspedes
+              function filterHuespedes(query) {
+                if (!query || query.length < 2) return [];
+                
+                const lowerQuery = query.toLowerCase();
+                return huespedData.filter(h => 
+                  h.nombre.toLowerCase().includes(lowerQuery) ||
+                  h.apellido.toLowerCase().includes(lowerQuery) ||
+                  h.documento.toLowerCase().includes(lowerQuery)
+                ).slice(0, 10);
+              }
+              
+              // Función para renderizar resultados
+              function renderResults(results) {
+                if (results.length === 0) {
+                  dropdownContent.innerHTML = '<div class="dropdown-item has-text-grey" style="padding: 1rem;">No se encontraron huéspedes</div>';
+                  return;
+                }
+                
+                dropdownContent.innerHTML = results.map(h => 
+                  '<a class="dropdown-item" data-id="' + h.id_huesped + '" data-display="' + h.displayText + '" style="padding: 0.75rem 1rem; cursor: pointer;">' +
+                    '<div>' +
+                      '<strong>' + h.apellido + ', ' + h.nombre + '</strong>' +
+                      '<br>' +
+                      '<small class="has-text-grey">' +
+                        '<i class="fas fa-id-card"></i> ' + h.documento +
+                        (h.telefono ? ' | <i class="fas fa-phone"></i> ' + h.telefono : '') +
+                      '</small>' +
+                    '</div>' +
+                  '</a>'
+                ).join('');
+                
+                // Agregar event listeners a los items
+                dropdownContent.querySelectorAll('.dropdown-item').forEach(function(item) {
+                  item.addEventListener('click', function() {
+                    const id = item.getAttribute('data-id');
+                    const display = item.getAttribute('data-display');
+                    hiddenInput.value = id;
+                    searchInput.value = display;
+                    dropdown.style.display = 'none';
+                    
+                    // Disparar validación del formulario
+                    if (window.validarFormulario) {
+                      window.validarFormulario();
+                    }
+                  });
+                });
+              }
+              
+              // Event listener para el input de búsqueda
+              searchInput.addEventListener('input', function(e) {
+                const query = e.target.value;
+                
+                if (query.length < 2) {
+                  dropdown.style.display = 'none';
+                  if (query.length === 0) {
+                    hiddenInput.value = '';
+                    if (window.validarFormulario) {
+                      window.validarFormulario();
+                    }
+                  }
+                  return;
+                }
+                
+                const results = filterHuespedes(query);
+                renderResults(results);
+                dropdown.style.display = 'block';
+              });
+              
+              // Cerrar dropdown al hacer clic fuera
+              document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                  dropdown.style.display = 'none';
+                }
+              });
+              
+              // Mostrar dropdown al hacer focus
+              searchInput.addEventListener('focus', function() {
+                if (searchInput.value.length >= 2) {
+                  const results = filterHuespedes(searchInput.value);
+                  renderResults(results);
+                  dropdown.style.display = 'block';
+                }
+              });
+              
+              // Limpiar selección si se borra el texto
+              searchInput.addEventListener('keyup', function(e) {
+                if (searchInput.value.trim() === '') {
+                  hiddenInput.value = '';
+                  if (window.validarFormulario) {
+                    window.validarFormulario();
+                  }
+                }
+              });
+            }
 
             // Manejo del formulario de nueva reserva
             const formNuevaReserva = document.getElementById('form-nueva-reserva');

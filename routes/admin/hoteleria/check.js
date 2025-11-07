@@ -44,8 +44,8 @@ router.get('/hoteleria/checkin/:idReserva', async (req, res) => {
         res.send(checkinDetailView({ reserva, formasPago }));
 
     } catch (error) {
-        console.error(error);
-        res.status(500).send('Error al cargar la página de check-in.');
+        console.error('Error en GET /hoteleria/checkin/:idReserva:', error);
+        res.status(500).send(`Error al cargar la página de check-in: ${error.message}`);
     }
 });
 

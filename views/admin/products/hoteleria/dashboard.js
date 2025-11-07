@@ -80,14 +80,14 @@ module.exports = () => {
       .chart-container {
         background: white;
         border-radius: 12px;
-        padding: 1rem;
+        padding: 1.5rem;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         margin-bottom: 1rem;
-        min-height: 180px;
+        min-height: 300px;
       }
       
       .chart-container canvas {
-        max-height: 200px !important;
+        max-height: 350px !important;
         height: auto !important;
       }
       
@@ -235,12 +235,22 @@ module.exports = () => {
     <section class="inventory-card">
       <!-- Header -->
       <div class="dashboard-header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
           <div>
-            <h1 class="title" style="color: white; margin-bottom: 0.25rem;">Dashboard Ejecutivo Hotelero</h1>
+            <h1 class="title" style="color: white; margin-bottom: 0.25rem;">Dashboard de Hotelería</h1>
             <p style="opacity: 0.9; font-size: 0.875rem;">Vista general del estado operativo y financiero</p>
           </div>
-          <div>
+          <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <!-- Filtro de Rango de Fechas -->
+            <div style="display: flex; gap: 0.5rem; align-items: center; background: rgba(255,255,255,0.15); padding: 0.5rem 1rem; border-radius: 8px;">
+              <i class="fas fa-calendar-alt" style="color: white;"></i>
+              <input type="date" id="fechaDesde" class="input is-small" style="background: white; border: none; border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.875rem;" />
+              <span style="color: white;">hasta</span>
+              <input type="date" id="fechaHasta" class="input is-small" style="background: white; border: none; border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.875rem;" />
+              <button class="button is-small is-light" id="aplicarFiltroFechas" style="border-radius: 6px;">
+                <i class="fas fa-filter"></i>
+              </button>
+            </div>
             <button class="refresh-btn" id="refreshDashboard">
               <i class="fas fa-sync-alt"></i>
               <span>Actualizar</span>
@@ -257,38 +267,37 @@ module.exports = () => {
         <!-- KPI 1: Ocupación -->
         <div class="kpi-card">
           <div class="kpi-icon">🏨</div>
-          <div class="kpi-label">Ocupación Actual</div>
-          <div class="kpi-value" id="kpi-ocupacion">--</div>
+          <div class="kpi-label" id="kpi-ocupacion-label">Ocupación</div>
+          <div class="kpi-value" id="kpi-ocupacion">--%</div>
           <div class="kpi-secondary" id="kpi-ocupacion-rooms">-- de -- habitaciones</div>
           <div class="kpi-trend" id="kpi-ocupacion-trend">
-            <i class="fas fa-arrow-up"></i> --%
+            <i class="fas fa-arrow-up"></i> --% vs ayer
           </div>
         </div>
 
         <!-- KPI 2: Precio Promedio por Noche -->
         <div class="kpi-card">
           <div class="kpi-icon">💰</div>
-          <div class="kpi-label">Precio Promedio por Noche</div>
+          <div class="kpi-label" id="kpi-adr-label">Precio Promedio (ADR)</div>
           <div class="kpi-value" id="kpi-adr">$--</div>
           <div class="kpi-secondary" id="kpi-adr-periodo">Promedio últimos 7 días</div>
         </div>
 
         <!-- KPI 3: Ingreso por Habitación Disponible -->
         <div class="kpi-card">
-          <div class="kpi-icon">📈</div>
-          <div class="kpi-label">Ingreso por Habitación Disponible</div>
+          <div class="kpi-icon">📊</div>
+          <div class="kpi-label" id="kpi-revpar-label">Ingreso por Habitación (RevPAR)</div>
           <div class="kpi-value" id="kpi-revpar">$--</div>
-          <div class="kpi-secondary" style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.25rem;">Ingresos totales ÷ Total de habitaciones</div>
-          <div class="kpi-secondary">Meta mensual: $4,200</div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="kpi-revpar-progress" style="width: 0%"></div>
+          <div class="kpi-secondary" id="kpi-revpar-secondary">RevPAR - Métrica clave</div>
+          <div class="kpi-progress">
+            <div class="kpi-progress-bar" id="kpi-revpar-progress"></div>
           </div>
         </div>
 
-        <!-- KPI 4: Ingresos Hoy -->
+        <!-- KPI 4: Ingresos -->
         <div class="kpi-card">
           <div class="kpi-icon">💵</div>
-          <div class="kpi-label">Ingresos del Día</div>
+          <div class="kpi-label" id="kpi-revenue-label">Ingresos</div>
           <div class="kpi-value" id="kpi-revenue">$--</div>
           <div class="kpi-secondary" id="kpi-revenue-proyeccion">Proyección mensual: $--</div>
         </div>
@@ -296,14 +305,14 @@ module.exports = () => {
 
       <!-- Gráficos Principales -->
       <div class="charts-row">
-        <!-- Gráfico 1: Ocupación y Precio Promedio -->
+        <!-- Gráfico 1: Ocupación -->
         <div class="chart-container" style="grid-column: 1 / -1;">
           <div class="chart-title">
             <i class="fas fa-chart-line" style="color: #3b82f6;"></i>
-            Ocupación y Precio Promedio - Últimos 30 Días
+            Tendencia de Ocupación
           </div>
-          <canvas id="chartOcupacionADR" height="60"></canvas>
-          <div id="insightsOcupacion" style="margin-top: 0.5rem; padding: 0.75rem; background: #f9fafb; border-radius: 6px; font-size: 0.8rem;"></div>
+          <canvas id="chartOcupacionADR" height="100"></canvas>
+          <div id="insightsOcupacion" style="margin-top: 0.5rem; padding: 0.75rem; background: #f9fafb; border-radius: 6px; font-size: 0.875rem;"></div>
         </div>
 
         <!-- Gráfico 2: Ingresos por Tipo -->
@@ -325,7 +334,17 @@ module.exports = () => {
           <div id="estadosDetalle" style="margin-top: 0.5rem; font-size: 0.75rem;"></div>
         </div>
 
-        <!-- Gráfico 4: Forecast Ocupación -->
+        <!-- Gráfico 4: Rentabilidad (Ingresos vs Egresos) -->
+        <div class="chart-container" style="grid-column: 1 / -1;">
+          <div class="chart-title">
+            <i class="fas fa-chart-area" style="color: #10b981;"></i>
+            Rentabilidad - Ingresos vs Egresos
+          </div>
+          <canvas id="chartRentabilidad" height="60"></canvas>
+          <div id="insightsRentabilidad" style="margin-top: 0.5rem; padding: 0.75rem; background: #f9fafb; border-radius: 6px; font-size: 0.8rem;"></div>
+        </div>
+
+        <!-- Gráfico 5: Forecast Ocupación -->
         <div class="chart-container" style="grid-column: 1 / -1;">
           <div class="chart-title">
             <i class="fas fa-calendar-alt" style="color: #06b6d4;"></i>

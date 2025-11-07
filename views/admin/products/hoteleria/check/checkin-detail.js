@@ -151,7 +151,7 @@ module.exports = ({ reserva, formasPago = [] }) => {
                     Cancelar
                   </a>
                   <button type="submit" class="btn-detail btn-detail--primary"
-                          id="btnConfirmarCheckin" ${saldoPendiente > 0 ? 'disabled' : ''}>
+                          id="btnConfirmarCheckin">
                     <i class="fas fa-check-circle"></i>
                     Confirmar Ingreso
                   </button>
@@ -287,14 +287,14 @@ module.exports = ({ reserva, formasPago = [] }) => {
                       <div class="summary-actions">
                         <div>
                           ${saldoPendiente > 0 ? 
-                            '<div class="status-message status-message--warning"><i class="fas fa-exclamation-triangle"></i> El check-in se habilita cuando el saldo sea $0.</div>' :
+                            '<div class="status-message status-message--info"><i class="fas fa-info-circle"></i> Puede realizar el check-in sin pago. El cobro se realizará al momento del check-out.</div>' :
                             '<div class="status-message status-message--success"><i class="fas fa-check-circle"></i> ¡Perfecto! La reserva está completamente pagada.</div>'
                           }
                         </div>
                         ${saldoPendiente > 0 ? `
-                          <button class="btn-detail btn-detail--danger" id="btnRegistrarPago">
+                          <button class="btn-detail btn-detail--success" id="btnRegistrarPago">
                             <i class="fas fa-dollar-sign"></i>
-                            Registrar Pago
+                            Registrar Pago (Opcional)
                           </button>
                         ` : `
                           <div class="text-center">

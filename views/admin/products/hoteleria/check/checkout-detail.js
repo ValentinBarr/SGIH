@@ -234,14 +234,14 @@ module.exports = ({ reserva, formasPago = [] }) => {
                       <div class="summary-actions">
                         <div>
                           ${saldoPendiente > 0 ? 
-                            '<div class="status-message status-message--error"><i class="fas fa-exclamation-triangle"></i> El check-out se habilita solo cuando el saldo esté en $0.</div>' :
+                            '<div class="status-message status-message--warning"><i class="fas fa-exclamation-triangle"></i> Debe completar el pago antes de realizar el check-out.</div>' :
                             '<div class="status-message status-message--success"><i class="fas fa-check-circle"></i> ¡Excelente! Todos los pagos están al día. Puede proceder con el check-out.</div>'
                           }
                         </div>
                         ${saldoPendiente > 0 ? `
                           <button class="btn-detail btn-detail--danger" id="btnRegistrarPago">
                             <i class="fas fa-dollar-sign"></i>
-                            Pago Final
+                            Registrar Pago
                           </button>
                         ` : `
                           <div class="text-center">
